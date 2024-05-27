@@ -1,8 +1,6 @@
-package com.yokalona.array.lazy.serializers;
+package com.yokalona.array.persitent.serializers;
 
 import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
