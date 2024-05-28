@@ -1,5 +1,6 @@
-package com.yokalona.array.serializers;
+package com.yokalona.array;
 
+import com.yokalona.array.serializers.SerializerStorage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
