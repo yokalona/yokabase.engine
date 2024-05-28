@@ -1,7 +1,5 @@
 package com.yokalona.tree;
 
-import com.yokalona.tree.b.BTree;
-
 public interface Tree<Key extends Comparable<Key>, Value> {
     Value
     get(Key key);

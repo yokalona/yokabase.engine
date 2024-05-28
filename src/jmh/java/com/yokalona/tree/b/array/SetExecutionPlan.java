@@ -1,8 +1,8 @@
 package com.yokalona.tree.b.array;
 
-import com.yokalona.array.persitent.io.FixedObjectLayout;
-import com.yokalona.array.persitent.PersistentArray;
-import com.yokalona.array.persitent.debug.CompactInteger;
+import com.yokalona.array.io.FixedObjectLayout;
+import com.yokalona.array.PersistentArray;
+import com.yokalona.array.debug.CompactInteger;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
@@ -10,11 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static com.yokalona.array.persitent.configuration.Chunked.chunked;
-import static com.yokalona.array.persitent.configuration.ChunkedRead.read;
-import static com.yokalona.array.persitent.configuration.ChunkedWrite.write;
-import static com.yokalona.array.persitent.configuration.Configuration.configure;
-import static com.yokalona.array.persitent.configuration.File.file;
+import static com.yokalona.array.configuration.Chunked.chunked;
+import static com.yokalona.array.configuration.ChunkedRead.read;
+import static com.yokalona.array.configuration.ChunkedWrite.write;
+import static com.yokalona.array.configuration.Configuration.configure;
+import static com.yokalona.array.configuration.File.file;
 import static com.yokalona.tree.b.Helper.shuffle;
 
 @State(Scope.Benchmark)
