@@ -1,11 +1,11 @@
 package com.yokalona.array.io;
 
-import com.yokalona.array.serializers.TypeDescriptor;
+import com.yokalona.array.serializers.FixedSizeSerializer;
 
 import java.io.InputStream;
 
 public interface LayoutProvider {
-    DataLayout provide(TypeDescriptor<?> descriptor);
+    DataLayout provide(FixedSizeSerializer<?> descriptor);
 
     static LayoutProvider
     which(byte format, InputStream input) {

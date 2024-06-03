@@ -2,15 +2,11 @@ package com.yokalona.array.serializers;
 
 public final class Version implements Comparable<Version> {
 
-    public static final TypeDescriptor<Version> descriptor = new TypeDescriptor<>(4, Version.class);
-    static {
-        SerializerStorage.register(descriptor, new VersionSerializer(descriptor));
-    }
+    public static final VersionSerializer serializer = new VersionSerializer();
 
     private final byte critical;
     private final byte major;
     private final byte minor;
-
     private byte mode;
 
     public Version(byte critical, byte major, byte minor, byte mode) {
@@ -53,28 +49,24 @@ public final class Version implements Comparable<Version> {
         this.mode = mode;
     }
 
-    public record VersionSerializer(TypeDescriptor<Version> descriptor, byte[] bytes) implements Serializer<Version> {
+    public static class VersionSerializer implements FixedSizeSerializer<Version> {
 
-        public VersionSerializer(TypeDescriptor<Version> descriptor) {
-            this(descriptor, new byte[descriptor.size()]);
+        @Override
+        public void serialize(Version version, byte[] data, int offset) {
+            data[offset++] = version.critical;
+            data[offset++] = version.major;
+            data[offset++] = version.minor;
+            data[offset] = version.mode;
         }
 
         @Override
-        public byte[]
-        serialize(Version version) {
-            return new byte[]{version.critical, version.major, version.minor, version.mode};
-        }
-
-        @Override
-        public Version
-        deserialize(byte[] bytes) {
-            return deserialize(bytes, 0);
-        }
-
-        @Override
-        public Version
-        deserialize(byte[] bytes, int offset) {
+        public Version deserialize(byte[] bytes, int offset) {
             return new Version(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+        }
+
+        @Override
+        public int sizeOf() {
+            return 4;
         }
     }
 }

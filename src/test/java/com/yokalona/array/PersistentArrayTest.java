@@ -1,14 +1,13 @@
 package com.yokalona.array;
 
-import com.yokalona.array.PersistentArray;
-import com.yokalona.array.TestExecutor;
 import com.yokalona.array.configuration.Configuration;
 import com.yokalona.array.debug.CompactInteger;
 import com.yokalona.array.exceptions.FileMarkedForDeletingException;
 import com.yokalona.array.exceptions.HeaderMismatchException;
 import com.yokalona.array.exceptions.IncompatibleVersionException;
 import com.yokalona.array.io.FixedObjectLayout;
-import com.yokalona.array.serializers.Serializers;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
+import com.yokalona.array.serializers.primitives.StringSerializer;
 import com.yokalona.array.subscriber.CountingSubscriber;
 import com.yokalona.array.subscriber.CountingSubscriber.Counter;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +18,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static com.yokalona.array.configuration.Chunked.chunked;
 import static com.yokalona.array.configuration.ChunkedRead.read;
@@ -52,7 +52,7 @@ public class PersistentArrayTest {
     public void
     testCreateArrayCreatesFileOnDisk() throws IOException {
         Path filePath = path.resolve("testCreateArrayCreatesFileOnDisk.la");
-        try (var ignore = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new,
+        try (var ignore = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new,
                 configure(file(filePath).cached())
                         .memory(chunked(10))
                         .read(read().chunked(10))
@@ -70,14 +70,14 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var ignore = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var ignore = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
         }
         try (var file = new RandomAccessFile(filePath.toFile(), "rw")) {
             file.seek(1);
             file.write(0);
         }
-        assertThrows(HeaderMismatchException.class, () -> PersistentArray.deserialize(CompactInteger.descriptor, configuration).close());
+        assertThrows(HeaderMismatchException.class, () -> PersistentArray.deserialize(CompactInteger.serializer, configuration).close());
     }
 
     @Test
@@ -88,14 +88,14 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var ignore = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var ignore = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
         }
         try (var file = new RandomAccessFile(filePath.toFile(), "rw")) {
             file.seek(7);
             file.write(5);
         }
-        assertThrows(IncompatibleVersionException.class, () -> PersistentArray.deserialize(CompactInteger.descriptor, configuration).close());
+        assertThrows(IncompatibleVersionException.class, () -> PersistentArray.deserialize(CompactInteger.serializer, configuration).close());
     }
 
     @Test
@@ -106,14 +106,14 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var ignore = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var ignore = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
         }
         try (var file = new RandomAccessFile(filePath.toFile(), "rw")) {
             file.seek(10);
             file.write(1);
         }
-        assertThrows(FileMarkedForDeletingException.class, () -> PersistentArray.deserialize(CompactInteger.descriptor, configuration).close());
+        assertThrows(FileMarkedForDeletingException.class, () -> PersistentArray.deserialize(CompactInteger.serializer, configuration).close());
     }
 
     @Test
@@ -124,7 +124,7 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.set(i, compact(i + 10));
@@ -134,7 +134,7 @@ public class PersistentArrayTest {
             file.seek(11);
             byte[] bytes = new byte[5];
             file.read(bytes);
-            assertEquals(10, Serializers.deserialize(bytes, 0));
+            assertEquals(10, IntegerSerializer.INSTANCE.deserialize(bytes, 0));
         }
     }
 
@@ -149,7 +149,7 @@ public class PersistentArrayTest {
                 .addSubscriber(subscriber)
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.set(i, compact(i + 10));
@@ -157,7 +157,7 @@ public class PersistentArrayTest {
         }
         assertEquals(1, subscriber.get(Counter.CHUNK_SERIALIZATIONS));
         assertEquals(10, subscriber.get(Counter.SERIALIZATIONS));
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             for (int i = 0; i < array.length(); i++) {
                 assertEquals(i + 10, array.get(i).value());
             }
@@ -177,7 +177,7 @@ public class PersistentArrayTest {
                 .addSubscriber(subscriber)
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.set(i, compact(i + 10));
@@ -196,7 +196,7 @@ public class PersistentArrayTest {
             assertEquals(10, subscriber.get(Counter.SERIALIZATIONS));
         }
 
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             for (int i = 0; i < array.length(); i++) {
                 assertEquals(i + 10, array.get(i).value());
             }
@@ -224,7 +224,7 @@ public class PersistentArrayTest {
                 .addSubscriber(subscriber)
                 .read(read().chunked(3))
                 .write(write().chunked(3));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.get(5);
@@ -240,7 +240,7 @@ public class PersistentArrayTest {
             assertEquals(2, subscriber.get(Counter.CACHE_MISS));
         }
         subscriber.reset();
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new,
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new,
                 configure(configuration.file())
                         .memory(configuration.memory())
                         .executor(new TestExecutor())
@@ -274,7 +274,7 @@ public class PersistentArrayTest {
                 .addSubscriber(subscriber)
                 .read(read().breakOnLoaded().chunked(3))
                 .write(write().chunked(3));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             array.get(0);
             array.get(4);
@@ -282,7 +282,7 @@ public class PersistentArrayTest {
             array.get(1);
             assertEquals(1, subscriber.get(Counter.DESERIALIZATIONS));
         }
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new,
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new,
                 configure(configuration.file())
                         .memory(configuration.memory())
                         .addSubscriber(subscriber)
@@ -309,7 +309,7 @@ public class PersistentArrayTest {
                 .executor(new TestExecutor())
                 .read(read().breakOnLoaded().chunked(3))
                 .write(write().chunked(3));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             array.set(0, compact(0));
             array.set(5, compact(5));
             assertEquals(1, subscriber.get(Counter.SERIALIZATIONS));
@@ -320,7 +320,7 @@ public class PersistentArrayTest {
             assertEquals(2, subscriber.get(Counter.SERIALIZATIONS));
         }
         subscriber.reset();
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new,
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new,
                 configure(configuration.file())
                         .memory(configuration.memory())
                         .addSubscriber(subscriber)
@@ -351,7 +351,7 @@ public class PersistentArrayTest {
                 .addSubscriber(subscriber)
                 .read(read().linear())
                 .write(write().linear());
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.set(i, compact(i + 10));
@@ -360,7 +360,7 @@ public class PersistentArrayTest {
             assertEquals(0, subscriber.get(Counter.WRITE_COLLISIONS));
             assertEquals(0, subscriber.get(Counter.CHUNK_SERIALIZATIONS));
         }
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 assertEquals(i + 10, array.get(i).value());
@@ -379,13 +379,13 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             for (int i = 0; i < array.length(); i++) {
                 array.set(i, compact(i + 10));
             }
         }
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             for (int i = 0; i < array.length(); i++) {
                 assertEquals(i + 10, array.get(i).value());
             }
@@ -400,14 +400,14 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             assertTrue(Files.exists(filePath));
             array.set(0, compact(0));
             array.set(1, compact(2));
             array.set(2, compact(3));
             array.insert(1, compact(1));
         }
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             for (int i = 0; i < 4; i++) {
                 assertEquals(i, array.get(i).value());
             }
@@ -427,8 +427,8 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var from = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configurationFrom);
-             var to = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configurationTo)) {
+        try (var from = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configurationFrom);
+             var to = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configurationTo)) {
             for (int i = 0; i < from.length(); i ++) {
                 from.set(i, compact(i));
             }
@@ -437,7 +437,7 @@ public class PersistentArrayTest {
             }
             from.copyTo(5, to, 5, 5);
         }
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configurationTo)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configurationTo)) {
             for (int i = 0; i < 5; i++) {
                 assertEquals(i + 10, array.get(i).value());
             }
@@ -455,10 +455,10 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             array.fill(compact(10));
         }
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             for (int i = 0; i < array.length(); i++) {
                 assertEquals(10, array.get(i).value());
             }
@@ -473,13 +473,13 @@ public class PersistentArrayTest {
                 .memory(chunked(10))
                 .read(read().chunked(10))
                 .write(write().chunked(10));
-        try (var array = new PersistentArray<>(10, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(10, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             array.fill(compact(10));
             for (int index = 0; index < array.length(); index++) assertNotNull(array.get(index));
             array.clear();
             for (int index = 0; index < array.length(); index++) assertNull(array.get(index));
         }
-        assertThrows(FileMarkedForDeletingException.class, () -> PersistentArray.deserialize(CompactInteger.descriptor, configuration).close());
+        assertThrows(FileMarkedForDeletingException.class, () -> PersistentArray.deserialize(CompactInteger.serializer, configuration).close());
     }
 
 }

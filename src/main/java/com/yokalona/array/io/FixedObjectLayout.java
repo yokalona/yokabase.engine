@@ -1,7 +1,7 @@
 package com.yokalona.array.io;
 
 import com.yokalona.array.PersistentArray;
-import com.yokalona.array.serializers.TypeDescriptor;
+import com.yokalona.array.serializers.FixedSizeSerializer;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -14,10 +14,10 @@ import java.io.RandomAccessFile;
  *
  * @param descriptor
  */
-public record FixedObjectLayout(TypeDescriptor<?> descriptor) implements DataLayout {
+public record FixedObjectLayout(FixedSizeSerializer<?> descriptor) implements DataLayout {
     @Override
     public void seek(int index, RandomAccessFile raf) throws IOException {
-        raf.seek(((long) index) * descriptor.size() + PersistentArray.HEADER_SIZE);
+        raf.seek(((long) index) * descriptor.sizeOf() + PersistentArray.HEADER_SIZE);
     }
 
     @Override

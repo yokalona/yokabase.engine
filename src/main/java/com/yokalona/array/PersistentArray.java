@@ -14,9 +14,10 @@ import com.yokalona.array.io.DataLayout;
 import com.yokalona.array.io.InputReader;
 import com.yokalona.array.io.LayoutProvider;
 import com.yokalona.array.io.OutputWriter;
-import com.yokalona.array.serializers.SerializerStorage;
 import com.yokalona.array.serializers.Serializers;
-import com.yokalona.array.serializers.TypeDescriptor;
+import com.yokalona.array.serializers.primitives.BooleanSerializer;
+import com.yokalona.array.serializers.FixedSizeSerializer;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.array.subscriber.ChunkType;
 import com.yokalona.array.subscriber.Subscriber;
 import com.yokalona.array.serializers.Version;
@@ -48,9 +49,9 @@ public class PersistentArray<Type> implements AutoCloseable {
     private static final boolean DELETED = true;
     private static final byte[] HEADER = new byte[]{-0x22, -0x36, -0x26, -0x06, -0x36, -0x26};
     public static final Version VERSION = new Version(1, 1, 0, 0);
-    public static final int HEADER_SIZE = HEADER.length + Version.descriptor.size()
-            + (2 * SerializerStorage.INTEGER.descriptor().size())
-            + SerializerStorage.BOOLEAN.descriptor().size();
+    public static final int HEADER_SIZE = HEADER.length + Version.serializer.sizeOf()
+            + (2 * IntegerSerializer.INSTANCE.sizeOf())
+            + BooleanSerializer.INSTANCE.sizeOf();
 
     /**
      * Version mark, represented as 4-byte word.
@@ -104,14 +105,14 @@ public class PersistentArray<Type> implements AutoCloseable {
     private final CachedFile storage;
     private final byte[] reusableBuffer;
     private final DataLayout dataLayout;
-    private final TypeDescriptor<Type> type;
+    private final FixedSizeSerializer<Type> type;
     private final Configuration configuration;
 
     private Object[] data;
     private int[] indices;
     private int readChunkSize;
 
-    private PersistentArray(int length, TypeDescriptor<Type> type, Object[] data, LayoutProvider layoutProvider,
+    private PersistentArray(int length, FixedSizeSerializer<Type> type, Object[] data, LayoutProvider layoutProvider,
                             Configuration configuration) {
         this.type = type;
         this.data = data;
@@ -136,7 +137,7 @@ public class PersistentArray<Type> implements AutoCloseable {
      * @param layoutProvider determines the way records are organised in storage
      * @param configuration  of an array and other components
      */
-    public PersistentArray(int length, TypeDescriptor<Type> type, LayoutProvider layoutProvider, Configuration configuration) {
+    public PersistentArray(int length, FixedSizeSerializer<Type> type, LayoutProvider layoutProvider, Configuration configuration) {
         this(length, type, new Object[Math.min(length, configuration.memory().size())], layoutProvider, configuration);
         serialise();
     }
@@ -260,11 +261,10 @@ public class PersistentArray<Type> implements AutoCloseable {
     serialise() {
         try (storage; OutputWriter writer = new OutputWriter(storage.get(), reusableBuffer)) {
             writer.write(HEADER);
-            writer.write(Serializers.serialize(Version.descriptor, version));
+            writer.write(Version.serializer.serialize(version));
             writer.write(Serializers.serialize(!DELETED));
             writer.write(Serializers.serialize(length));
-            writer.write(Serializers.serialize(type.size()));
-            for (int index = 0; index < length; index++) writer.write(Serializers.serialize(type, null));
+            for (int index = 0; index < length; index++) writer.write(type.serialize(null));
             notify(Subscriber::onFileCreated);
         } catch (Exception e) {
             throw new SerializationException("during full array serialization", e);
@@ -274,7 +274,7 @@ public class PersistentArray<Type> implements AutoCloseable {
     private void
     setForRemoval() throws IOException {
         try (var raf = new RandomAccessFile(configuration.file().path().toFile(), "rw")) {
-            raf.seek(HEADER.length + Version.descriptor.size());
+            raf.seek(HEADER.length + Version.serializer.sizeOf());
             raf.write(Serializers.serialize(true));
         }
     }
@@ -297,8 +297,8 @@ public class PersistentArray<Type> implements AutoCloseable {
 
     private void
     notify(Consumer<Subscriber> notification) {
-        configuration.executor().execute(() ->
-                configuration.subscribers().forEach(notification));
+//        configuration.executor().execute(() ->
+                configuration.subscribers().forEach(notification);
     }
 
     private void
@@ -344,10 +344,11 @@ public class PersistentArray<Type> implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void
     serialize(OutputWriter writer, int index) throws IOException {
         if (isFree(index)) return;
-        writer.write(Serializers.serialize(type, data[index % data.length]));
+        writer.write(type.serialize((Type) data[index % data.length]));
         notify(subscriber -> subscriber.onSerialized(index));
     }
 
@@ -360,7 +361,7 @@ public class PersistentArray<Type> implements AutoCloseable {
             InputReader reader = new InputReader(reusableBuffer, raf);
             dataLayout.seek(index, raf);
             boolean shouldSeek = false;
-            byte[] datum = new byte[type.size()];
+            byte[] datum = new byte[type.sizeOf()];
             for (int offset = index; offset < Math.min(index + size, length); offset++) {
                 if (!reload(offset)) {
                     shouldSeek = true;
@@ -382,7 +383,7 @@ public class PersistentArray<Type> implements AutoCloseable {
     private void
     deserialize(InputReader reader, byte[] datum, int index) throws IOException {
         reader.read(datum);
-        associate(index, Serializers.deserialize(type, datum));
+        associate(index, type.deserialize(datum, 0));
         notify(subscriber -> subscriber.onDeserialized(index));
     }
 
@@ -402,19 +403,19 @@ public class PersistentArray<Type> implements AutoCloseable {
     }
 
     public static <Type> PersistentArray<Type>
-    deserialize(TypeDescriptor<Type> type, Configuration configuration) {
+    deserialize(FixedSizeSerializer<Type> type, Configuration configuration) {
         return deserialize(type, configuration, new TreeSet<>());
     }
 
     public static <Type> PersistentArray<Type>
-    deserialize(TypeDescriptor<Type> type, Configuration configuration, TreeSet<Integer> preload) {
+    deserialize(FixedSizeSerializer<Type> type, Configuration configuration, TreeSet<Integer> preload) {
         assert type != null && configuration != null && preload != null;
 
         try (InputStream input = new BufferedInputStream(new FileInputStream(configuration.file().path().toFile()))) {
             validateHeader(input);
             byte mode = validateVersion(input);
             validateRemovalFlag(input);
-            int length = readAsType(SerializerStorage.INTEGER.descriptor(), input);
+            int length = readAsType(IntegerSerializer.INSTANCE, input);
             PersistentArray<Type> array = new PersistentArray<>(length, type, new Object[configuration.memory().size()],
                     LayoutProvider.which(mode, input), configuration);
             int boundary = configuration.memory().size();
@@ -434,20 +435,20 @@ public class PersistentArray<Type> implements AutoCloseable {
 
     private static byte
     validateVersion(InputStream input) throws IOException {
-        Version version = readAsType(Version.descriptor, input);
+        Version version = readAsType(Version.serializer, input);
         if (VERSION.compareTo(version) < 0) throw new IncompatibleVersionException(version);
         return version.mode();
     }
 
     private static void
     validateRemovalFlag(InputStream input) throws IOException {
-        if (readAsType(SerializerStorage.BOOLEAN.descriptor(), input)) throw new FileMarkedForDeletingException();
+        if (readAsType(BooleanSerializer.INSTANCE, input)) throw new FileMarkedForDeletingException();
     }
 
     private static <Type> Type
-    readAsType(TypeDescriptor<Type> type, InputStream input) throws IOException {
-        byte[] buffer = read(type.size(), input);
-        return Serializers.deserialize(type, buffer);
+    readAsType(FixedSizeSerializer<Type> type, InputStream input) throws IOException {
+        byte[] buffer = read(type.sizeOf(), input);
+        return type.deserialize(buffer, 0);
     }
 
     private static byte[]

@@ -1,6 +1,5 @@
 package com.yokalona.array;
 
-import com.yokalona.array.PersistentArray;
 import com.yokalona.array.configuration.Configuration;
 import com.yokalona.array.debug.CompactInteger;
 import com.yokalona.array.io.FixedObjectLayout;
@@ -49,23 +48,23 @@ class LoadArrayTest {
     public void
     testMemoryConsumption() throws IOException {
         CountingSubscriber statist = new CountingSubscriber();
-        int length = Power.two(17);
+        int length = Power.two(20);
         Configuration configuration = configure(
                 file(path.resolve(UUID.randomUUID() + ".la"))
                         .mode(RW)
-                        .buffer(5 * Power.two(20))
+                        .buffer(5 * Power.two(15))
                         .cached())
                 .memory(chunked(Power.two(17)))
                 .addSubscriber(statist)
-                .read(read().breakOnLoaded().chunked(Power.two(5)))
+                .read(read().breakOnLoaded().chunked(Power.two(17)))
                 .write(write().chunked(Power.two(17)));
         long writeLinear = 0L, readLinear = 0L, writeRandom = 0L, readRandom = 0L;
         printConfiguration(new TestHelper.PersistenceTest(length, configuration.memory().size(),
                 configuration.read().size(),
                 configuration.write().size(),
                 configuration.file().buffer(),
-                CompactInteger.descriptor.size()));
-        int repeats = 8;
+                CompactInteger.serializer.sizeOf()));
+        int repeats = 5;
         for (int i = 0; i < repeats; i++) {
             printHeader(i + 1, repeats);
             writeLinear += printStatistic("Linear write", writeLinear(length, configuration, statist), statist);
@@ -86,7 +85,7 @@ class LoadArrayTest {
 
     private static long
     readLinear(int length, Configuration configuration) {
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
             long start = System.currentTimeMillis();
             for (int index = 0; index < length; index++) {
                 CompactInteger value = array.get(index);
@@ -107,7 +106,8 @@ class LoadArrayTest {
             indices[index] = index;
         }
         shuffle(indices);
-        try (var array = PersistentArray.deserialize(CompactInteger.descriptor, configuration)) {
+        try (var array = PersistentArray.deserialize(CompactInteger.serializer, configuration)) {
+            array.resizeReadChunk(1);
             long start = System.currentTimeMillis();
             int ops = 0;
             for (int index : indices) {
@@ -125,7 +125,7 @@ class LoadArrayTest {
     private static long
     writeLinear(int length, Configuration configuration, CountingSubscriber statist) {
         long fileStart = System.currentTimeMillis();
-        try (var array = new PersistentArray<>(length, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(length, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             printStatistic("Creation time", (statist.get(CountingSubscriber.Counter.FILE_CREATED) - fileStart) + " ms");
             long start = System.currentTimeMillis();
             for (int index = 0; index < length; index++) {
@@ -146,8 +146,9 @@ class LoadArrayTest {
         }
         shuffle(indices);
         long fileStart = System.currentTimeMillis();
-        try (var array = new PersistentArray<>(length, CompactInteger.descriptor, FixedObjectLayout::new, configuration)) {
+        try (var array = new PersistentArray<>(length, CompactInteger.serializer, FixedObjectLayout::new, configuration)) {
             printStatistic("Creation time", (statist.get(CountingSubscriber.Counter.FILE_CREATED) - fileStart) + " ms");
+            array.resizeWriteChunk(1);
             long start = System.currentTimeMillis();
             int ops = 0;
             for (int index : indices) {

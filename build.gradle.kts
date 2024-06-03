@@ -12,6 +12,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 dependencies {
     compileOnly("org.projectlombok:lombok:1.18.32")
 
