@@ -6,5 +6,5 @@ public interface Header {
      */
     int size();
 
-
+    default void update(int start, int end) {}
 }

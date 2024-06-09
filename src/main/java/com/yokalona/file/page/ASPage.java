@@ -15,7 +15,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int size = 0;
     private final int space;
-    private Header[] headers;
     private final int offset;
     private final byte[] page;
     private final FixedSizeSerializer<Type> serializer;
