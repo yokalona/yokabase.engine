@@ -30,26 +30,27 @@ public class MergeAvailabilitySpace {
 
     public int
     alloc(int size) {
-        int address = allocate(size);
+        int address = allocate(size, false);
         if (address < 0) {
             defragmentation();
-            address = allocate(size);
+            address = allocate(size, false);
         }
         return address;
     }
 
-    public int
+    public boolean
+    fits(int size) {
+        return allocate(size, true) > 0;
+    }
+
+    public void
     reduce(int by) {
-        int index = this.pointers.find(new Pointer(start, -1), Comparator.comparingInt(Pointer::start));
-        if (index < 0) return index;
-        Pointer pointer = this.pointers.get(index);
-        this.pointers.set(index, pointer.adjust(+by, +0));
         start += by;
-        return pointer.start();
     }
 
     public int
     free0(int size, int address) {
+        if (address < start) throw new WriteOverflowException("");
         if (address + size > border) throw new WriteOverflowException("Freeing more memory, that is accessible");
         Pointer pointer = new Pointer(address, address + size);
         int index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
@@ -130,7 +131,7 @@ public class MergeAvailabilitySpace {
     }
 
     private int
-    allocate(int size) {
+    allocate(int size, boolean intermediate) {
         int selected = -1, delta = Integer.MAX_VALUE;
         Pointer[] pointers = this.pointers.read(Pointer.class);
         for (int index = 0; index < pointers.length; index++) {
@@ -139,6 +140,7 @@ public class MergeAvailabilitySpace {
             if (delta == 0) break;
         }
         if (selected < 0) return -1;
+        else if (intermediate) return 1;
         if (delta != 0) this.pointers.set(selected, pointers[selected].adjust(+0, -size));
         else this.pointers.remove(selected);
         return pointers[selected].end() - size;

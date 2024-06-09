@@ -3,6 +3,8 @@ package com.yokalona.file;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 
+import java.util.Arrays;
+
 public class DataSpace<Type> {
 
     private final byte[] space;

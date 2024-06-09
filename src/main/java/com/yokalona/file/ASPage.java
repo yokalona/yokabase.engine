@@ -185,7 +185,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
 
     public boolean
     spills() {
-        return (size + 1) * serializer.sizeOf() > space;
+        return free() < serializer.sizeOf();
     }
 
     private int

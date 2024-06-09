@@ -7,4 +7,7 @@ public non-sealed interface VariableSizeSerializer<Type> extends Serializer<Type
     default int sizeOf(byte[] data, int offset) {
         return IntegerSerializer.INSTANCE.deserializeCompact(data, offset);
     }
+    default int sizeOf(int length, byte[] data, int offset) {
+        return IntegerSerializer.INSTANCE.deserializeCompact(length, data, offset);
+    }
 }

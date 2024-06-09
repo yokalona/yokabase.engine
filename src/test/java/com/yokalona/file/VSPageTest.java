@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -48,39 +47,38 @@ class VSPageTest {
 
     @Test
     void testRemove() {
-        byte[] space = new byte[4 * 1024];
-        VSPage<String> page = new VSPage.Configurer<>(StringSerializer.INSTANCE)
-                .on(space, 0)
-                .configure();
-        List<String> expected = new ArrayList<>();
-        String string = randomString(3, 100);
-        while (page.fits(StringSerializer.INSTANCE.sizeOf(string))) {
+        for (int i = 0; i < 10000; i ++) {
+            byte[] space = new byte[8 * 1024];
+            VSPage<String> page = new VSPage.Configurer<>(StringSerializer.INSTANCE)
+                    .on(space, 0)
+                    .delimiter(.5F)
+                    .configure();
+            List<String> expected = new ArrayList<>();
+            String string = randomString(3, 100);
+            while (page.fits(StringSerializer.INSTANCE.sizeOf(string))) {
+                page.append(string);
+                expected.add(string);
+                string = randomString(3, 100);
+            }
+            string = randomString(50, 100);
+            int size = StringSerializer.INSTANCE.sizeOf(string);
+            while (!page.fits(size)) {
+                int index = RANDOM.nextInt(page.size());
+                page.remove(index);
+                expected.remove(index);
+            }
+            for (int index = 0; index < expected.size(); index++) {
+                assertEquals(expected.get(index), page.get(index));
+            }
+            assertEquals(expected.size(), page.size());
             page.append(string);
             expected.add(string);
-            randomString(3, 100);
+            for (int index = 0; index < expected.size(); index++) {
+                String expectedStr = expected.get(index);
+                String actualStr = page.get(index);
+                assertEquals(expectedStr, actualStr);
+            }
         }
-        string = randomString(50, 100);
-        int size = StringSerializer.INSTANCE.sizeOf(string);
-        while (!page.fits(size)) {
-            int index = RANDOM.nextInt(page.size());
-            page.remove(index);
-            expected.remove(index);
-        }
-
-        for (int index = 0; index < expected.size(); index++) {
-            assertEquals(expected.get(index), page.get(index));
-        }
-        assertEquals(expected.size(), page.size());
-
-//        string = randomString(3, 10);
-
-        page.append(string);
-        expected.add(string);
-//        prettyPrint(space);
-        for (int index = 0; index < expected.size(); index++) {
-            assertEquals(expected.get(index), page.get(index));
-        }
-        prettyPrint(space);
     }
 
     private static void
@@ -108,9 +106,9 @@ class VSPageTest {
 
     String
     randomString(int min, int max) {
-        byte [] bytes = new byte[RANDOM.nextInt(min, max)];
+        byte [] bytes = new byte[new Random().nextInt(min, max)];
         for (int i = 0; i < bytes.length; i++) {
-            bytes[i] = (byte) ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length()));
+            bytes[i] = (byte) ALPHABET.charAt(new Random().nextInt(ALPHABET.length()));
         }
         return new String(bytes, StandardCharsets.UTF_8);
     }

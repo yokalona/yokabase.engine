@@ -1,6 +1,7 @@
 package com.yokalona.file;
 
 import com.yokalona.array.serializers.VariableSizeSerializer;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
 
 public class VSPage<Type> implements Page {
     private int free;
@@ -30,7 +31,9 @@ public class VSPage<Type> implements Page {
         int size = serializer.sizeOf(value);
         if (free < size + dataSpace.pointerSize()) throw new NoFreeSpaceAvailableException();
         int address = pointers.alloc(size);
-        if (address < 0) throw new NullPointerException();
+        if (address < 0)
+            throw new NullPointerException();
+        pointers.reduce(dataSpace.pointerSize());
         this.free -= (size + dataSpace.pointerSize());
         return dataSpace.insert(address, value);
     }
@@ -38,15 +41,18 @@ public class VSPage<Type> implements Page {
     public int
     remove(int index) {
         int address = dataSpace.address(index);
-        int size = serializer.sizeOf(space, address);
+        int size = serializer.sizeOf(dataSpace.pointerSize(), space, address);
         this.pointers.free(size, address);
+        int count = dataSpace.remove(index);
+        this.pointers.reduce(-dataSpace.pointerSize());
         this.free += size + dataSpace.pointerSize();
-        return dataSpace.remove(index);
+        return count;
     }
 
     public boolean
     fits(int size) {
-        return this.free > size + dataSpace.pointerSize();
+        return this.free > size + dataSpace.pointerSize()
+                && pointers.fits(size);
     }
 
     @Override
