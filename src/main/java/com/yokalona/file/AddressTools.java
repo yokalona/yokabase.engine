@@ -1,10 +1,10 @@
 package com.yokalona.file;
 
-public class AddressSpaceTools {
+public class AddressTools {
 
-    private AddressSpaceTools() {}
+    private AddressTools() {}
 
-    public static int
+    public static byte
     significantBytes(int space) {
         if (space <= 0xFFFF) return 2;
         else if (space <= 0xFFFFFF) return 3;

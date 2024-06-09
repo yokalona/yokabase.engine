@@ -7,10 +7,12 @@ public class BooleanSerializer implements FixedSizeSerializer<Boolean> {
     public static final FixedSizeSerializer<Boolean> INSTANCE = new BooleanSerializer();
 
     @Override
-    public void serialize(Boolean value, byte[] bytes, int offset) {
+    public int
+    serialize(Boolean value, byte[] bytes, int offset) {
         if (value == null) bytes[offset] = 0xF;
         else if (value) bytes[offset] = 0x1;
         else bytes[offset] = 0x0;
+        return 1;
     }
 
     @Override

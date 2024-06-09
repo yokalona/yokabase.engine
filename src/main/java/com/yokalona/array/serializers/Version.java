@@ -52,11 +52,12 @@ public final class Version implements Comparable<Version> {
     public static class VersionSerializer implements FixedSizeSerializer<Version> {
 
         @Override
-        public void serialize(Version version, byte[] data, int offset) {
+        public int serialize(Version version, byte[] data, int offset) {
             data[offset++] = version.critical;
             data[offset++] = version.major;
             data[offset++] = version.minor;
             data[offset] = version.mode;
+            return 4;
         }
 
         @Override

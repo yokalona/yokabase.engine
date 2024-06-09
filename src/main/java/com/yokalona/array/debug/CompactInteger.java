@@ -15,10 +15,11 @@ public record CompactInteger(int value) {
     private static class CompactIntegerSerializer implements FixedSizeSerializer<CompactInteger> {
 
         @Override
-        public void
+        public int
         serialize(CompactInteger value, byte[] data, int offset) {
             if (value == null) data[offset] = 0xF;
             else IntegerSerializer.INSTANCE.serialize(value.value, data, offset);
+            return IntegerSerializer.SIZE + 1;
         }
 
         @Override

@@ -31,9 +31,9 @@ public class PointerSerializer implements FixedSizeSerializer<Pointer> {
     }
 
     @Override
-    public void serialize(Pointer pointer, byte[] data, int offset) {
-        serializer.serialize(pointer.length(), data, offset);
-        serializer.serialize(pointer.address(), data, offset + significant);
+    public int serialize(Pointer pointer, byte[] data, int offset) {
+        int length = serializer.serialize(pointer.length(), data, offset);
+        return length + serializer.serialize(pointer.address(), data, offset + significant);
     }
 
     @Override
@@ -45,7 +45,7 @@ public class PointerSerializer implements FixedSizeSerializer<Pointer> {
 
     public static PointerSerializer
     forSpace(int size) {
-        int significantBytes = AddressSpaceTools.significantBytes(size);
+        byte significantBytes = AddressTools.significantBytes(size);
         return switch (significantBytes) {
             case 2 -> INSTANCE_2B;
             case 3 -> INSTANCE_3B;

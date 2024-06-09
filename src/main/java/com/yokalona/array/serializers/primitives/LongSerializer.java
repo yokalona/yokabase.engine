@@ -8,7 +8,7 @@ public class LongSerializer implements FixedSizeSerializer<Long> {
     public static final FixedSizeSerializer<Long> INSTANCE = new LongSerializer();
 
     @Override
-    public void
+    public int
     serialize(Long value, byte[] bytes, int offset) {
         if (value == null) bytes[offset] = (byte) 0xF;
         else {
@@ -18,6 +18,7 @@ public class LongSerializer implements FixedSizeSerializer<Long> {
                 value >>= 8;
             }
         }
+        return sizeOf();
     }
 
     @Override

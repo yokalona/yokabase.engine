@@ -8,7 +8,7 @@ public class ShortSerializer implements FixedSizeSerializer<Short> {
     public static final int SIZE = Short.BYTES;
 
     @Override
-    public void
+    public int
     serialize(Short value, byte[] bytes, int offset) {
         if (value == null) bytes[offset] = (byte) 0xF;
         else {
@@ -18,6 +18,7 @@ public class ShortSerializer implements FixedSizeSerializer<Short> {
                 value = (short) (value >> 8);
             }
         }
+        return sizeOf();
     }
 
     @Override

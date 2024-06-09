@@ -18,11 +18,12 @@ public class StringSerializer implements VariableSizeSerializer<String> {
     }
 
     @Override
-    public void
+    public int
     serialize(String s, byte[] data, int offset) {
-        IntegerSerializer.INSTANCE.serializeCompact(s.length(), data, offset);
-        System.arraycopy(s.getBytes(StandardCharsets.UTF_8), 0, data,
-                offset + IntegerSerializer.SIZE, s.length());
+        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+        int length = IntegerSerializer.INSTANCE.serializeCompact(bytes.length, data, offset);
+        System.arraycopy(bytes, 0, data, offset + IntegerSerializer.SIZE, s.length());
+        return length + bytes.length;
     }
 
     @Override

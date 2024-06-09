@@ -1,7 +1,6 @@
 package com.yokalona.file;
 
 import com.yokalona.array.serializers.FixedSizeSerializer;
-import com.yokalona.array.serializers.VariableSizeSerializer;
 
 import java.lang.reflect.Array;
 import java.util.Comparator;
@@ -67,12 +66,13 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         serializeLength(++size);
     }
 
-    public synchronized void
+    public synchronized int
     append(Type value) {
-        if (spills()) throw new WriteOverflowException(free());
+        if (spills())
+            throw new WriteOverflowException(free());
         int offset = offset(size);
         serialize(value, offset);
-        serializeLength(++size);
+        return serializeLength(++size);
     }
 
     public synchronized void
@@ -97,11 +97,11 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         return -(left + 1);
     }
 
-    public synchronized void
+    public synchronized int
     remove(int index) {
         if (outbound(index)) throw new WriteOverflowException(size, index);
         System.arraycopy(page, offset(index + 1), page, offset(index), (size - index - 1) * serializer.sizeOf());
-        serializeLength(--size);
+        return serializeLength(--size);
     }
 
     public synchronized void
@@ -146,15 +146,30 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         return Short.BYTES + size * serializer.sizeOf();
     }
 
+    public int
+    offset() {
+        return offset;
+    }
+
+    private Type
+    deserialize(int offset) {
+        return serializer.deserialize(page, offset);
+    }
+
     @Override
     public Iterator<Type>
     iterator() {
         return new Iterator<>() {
-            private int current;
+            private int current = -1;
 
             @Override
             public boolean hasNext() {
-                return current++ != size;
+                if (current + 1 < size) {
+                    current ++;
+                    return true;
+                } else {
+                    return false;
+                }
             }
 
             @Override
@@ -189,21 +204,12 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         serializer.serialize(value, page, offset);
     }
 
-    public Type
-    deserialize(int offset) {
-        return serializer.deserialize(page, offset);
-    }
-
-    private void
+    private int
     serializeLength(int value) {
         for (int position = Short.BYTES - 1; position >= 0; position--) {
             page[offset + position] = (byte) (value & 0xFF);
             value = (short) (value >> 8);
         }
-    }
-
-    public int
-    offset() {
-        return offset;
+        return value;
     }
 }

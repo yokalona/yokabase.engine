@@ -7,13 +7,14 @@ public class IntegerSerializer implements FixedSizeSerializer<Integer> {
     public static final int SIZE = Integer.BYTES;
 
     @Override
-    public void
+    public int
     serialize(Integer value, byte[] bytes, int offset) {
         if (value == null) bytes[offset] = (byte) 0xF;
         else {
             bytes[offset++] = 0x0;
             serializeCompact(value, SIZE, bytes, offset);
         }
+        return sizeOf();
     }
 
     @Override
@@ -23,17 +24,18 @@ public class IntegerSerializer implements FixedSizeSerializer<Integer> {
         return deserializeCompact(bytes, offset);
     }
 
-    public void
+    public int
     serializeCompact(int value, byte[] bytes, int offset) {
-        serializeCompact(value, SIZE, bytes, offset);
+        return serializeCompact(value, SIZE, bytes, offset);
     }
 
-    public void
+    public int
     serializeCompact(int value, int length, byte[] bytes, int offset) {
         for (int position = length - 1; position >= 0; position--) {
             bytes[offset + position] = (byte) (value & 0xFF);
             value >>= 8;
         }
+        return length;
     }
 
     public int

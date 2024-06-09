@@ -7,13 +7,14 @@ public class ByteSerializer implements FixedSizeSerializer<Byte> {
     public static final FixedSizeSerializer<Byte> INSTANCE = new ByteSerializer();
 
     @Override
-    public void
+    public int
     serialize(Byte value, byte[] bytes, int offset) {
         if (value == null) bytes[offset] = 0xF;
         else {
             bytes[offset++] = 0x0;
             bytes[offset] = value;
         }
+        return sizeOf();
     }
 
     @Override

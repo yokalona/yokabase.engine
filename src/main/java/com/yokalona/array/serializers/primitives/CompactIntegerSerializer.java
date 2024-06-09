@@ -27,9 +27,9 @@ public class CompactIntegerSerializer implements FixedSizeSerializer<Integer>, V
     }
 
     @Override
-    public void
+    public int
     serialize(Integer value, byte[] data, int offset) {
-        IntegerSerializer.INSTANCE.serializeCompact(value, significant, data, offset);
+        return IntegerSerializer.INSTANCE.serializeCompact(value, significant, data, offset);
     }
 
     @Override

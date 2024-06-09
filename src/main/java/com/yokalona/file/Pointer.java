@@ -7,7 +7,12 @@ public record Pointer(int length, int address) {
     }
 
     public int
+    start() {
+        return address - length;
+    }
+
+    public int
     end() {
-        return address + length;
+        return address;
     }
 }
