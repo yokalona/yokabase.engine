@@ -69,8 +69,8 @@ class LoadArrayTest {
             printHeader(i + 1, repeats);
             writeLinear += printStatistic("Linear write", writeLinear(length, configuration, statist), statist);
             readLinear += printStatistic("Linear read", readLinear(length, configuration), statist);
-            writeRandom += printStatistic("Random write", writeRandom(length, configuration, statist), statist);
-            readRandom += printStatistic("Random read", readRandom(length, configuration), statist);
+//            writeRandom += printStatistic("Random write", writeRandom(length, configuration, statist), statist);
+//            readRandom += printStatistic("Random read", readRandom(length, configuration), statist);
         }
         printHeader();
         printAverage("linear write", (float) writeLinear / repeats, "ms");

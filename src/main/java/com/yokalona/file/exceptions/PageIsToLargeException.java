@@ -1,4 +1,4 @@
-package com.yokalona.file;
+package com.yokalona.file.exceptions;
 
 public class PageIsToLargeException extends RuntimeException {
     public PageIsToLargeException(int size) {

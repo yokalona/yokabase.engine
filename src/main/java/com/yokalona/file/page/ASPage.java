@@ -1,15 +1,21 @@
-package com.yokalona.file;
+package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.FixedSizeSerializer;
+import com.yokalona.file.Header;
+import com.yokalona.file.exceptions.NegativePageSizeException;
+import com.yokalona.file.exceptions.PageIsToLargeException;
+import com.yokalona.file.exceptions.ReadOverflowException;
+import com.yokalona.file.exceptions.WriteOverflowException;
 
 import java.lang.reflect.Array;
 import java.util.Comparator;
 import java.util.Iterator;
 
-public class ASPage<Type> implements Page, Iterable<Type> {
+public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int size = 0;
     private final int space;
+    private Header[] headers;
     private final int offset;
     private final byte[] page;
     private final FixedSizeSerializer<Type> serializer;
@@ -23,7 +29,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
 
     public static <Type> ASPage<Type>
     create(int size, FixedSizeSerializer<Type> serializer) {
-        if (size <= 0) throw new NegativePageSize();
+        if (size <= 0) throw new NegativePageSizeException();
         else if (size > 128) throw new PageIsToLargeException(size * 1024);
         return create(size * 1024, 0, serializer, new byte[size * 1024]);
     }
@@ -33,6 +39,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         return new ASPage<>(space, offset, page, serializer);
     }
 
+    @Override
     public synchronized Type
     get(int index) {
         if (outbound(index)) throw new ReadOverflowException(size, index);
@@ -66,6 +73,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         serializeLength(++size);
     }
 
+    @Override
     public synchronized int
     append(Type value) {
         if (spills()) throw new WriteOverflowException(free());
@@ -96,6 +104,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         return -(left + 1);
     }
 
+    @Override
     public synchronized int
     remove(int index) {
         if (outbound(index)) throw new WriteOverflowException(size, index);

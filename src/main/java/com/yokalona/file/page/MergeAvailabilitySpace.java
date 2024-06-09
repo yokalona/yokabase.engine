@@ -1,7 +1,11 @@
-package com.yokalona.file;
+package com.yokalona.file.page;
 
 import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.annotations.SpawnSubprocess;
+import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
+import com.yokalona.file.Pointer;
+import com.yokalona.file.serializers.PointerSerializer;
+import com.yokalona.file.exceptions.WriteOverflowException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,6 +66,12 @@ public class MergeAvailabilitySpace {
         return this.pointers.size();
     }
 
+    public void
+    free(int end) {
+        this.pointers.clear();
+        this.pointers.append(new Pointer(start, end));
+    }
+
     public int
     free(int size, int address) {
         if (address + size > border) throw new WriteOverflowException("Freeing more memory, that is accessible");
@@ -114,6 +124,11 @@ public class MergeAvailabilitySpace {
         }
         this.pointers.clear();
         for (Pointer p : merged) this.pointers.append(p);
+    }
+
+    public int
+    maxAddress() {
+        return border;
     }
 
     @PerformanceImpact

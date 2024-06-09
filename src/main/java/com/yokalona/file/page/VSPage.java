@@ -1,9 +1,9 @@
-package com.yokalona.file;
+package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.VariableSizeSerializer;
-import com.yokalona.array.serializers.primitives.IntegerSerializer;
+import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
 
-public class VSPage<Type> implements Page {
+public class VSPage<Type> implements Page<Type> {
     private int free;
     private final int total;
     private final byte[] space;
@@ -21,23 +21,30 @@ public class VSPage<Type> implements Page {
         this.free = this.total - dataSpace.pointerSize();
     }
 
+    @Override
     public Type
     get(int index) {
         return dataSpace.get(index);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
     public int
     append(Type value) {
         int size = serializer.sizeOf(value);
         if (free < size + dataSpace.pointerSize()) throw new NoFreeSpaceAvailableException();
         int address = pointers.alloc(size);
-        if (address < 0)
-            throw new NullPointerException();
+        if (address < 0) {
+            defragmentation((Class<Type>) value.getClass());
+            address = pointers.alloc(size);
+            if (address < 0) throw new NullPointerException();
+        }
         pointers.reduce(dataSpace.pointerSize());
         this.free -= (size + dataSpace.pointerSize());
         return dataSpace.insert(address, value);
     }
 
+    @Override
     public int
     remove(int index) {
         int address = dataSpace.address(index);
@@ -55,18 +62,30 @@ public class VSPage<Type> implements Page {
                 && pointers.fits(size);
     }
 
+    public void
+    defragmentation(Class<Type> type) {
+        Type[] array = dataSpace.read(type);
+        dataSpace.clear();
+        int max = pointers.maxAddress();
+        for (Type data : array) dataSpace.insert(max = max - serializer.sizeOf(data), data);
+        pointers.free(max);
+    }
+
     @Override
-    public int size() {
+    public int
+    size() {
         return dataSpace.size();
     }
 
     @Override
-    public int free() {
+    public int
+    free() {
         return free;
     }
 
     @Override
-    public int occupied() {
+    public int
+    occupied() {
         return total - free;
     }
 
@@ -81,20 +100,20 @@ public class VSPage<Type> implements Page {
             this.serializer = serializer;
         }
 
-        Configurer<Type>
+        public Configurer<Type>
         on(byte[] space, int offset) {
             this.space = space;
             this.offset = offset;
             return this;
         }
 
-        Configurer<Type>
+        public Configurer<Type>
         ofSize(int size) {
             this.size = size;
             return this;
         }
 
-        Configurer<Type>
+        public Configurer<Type>
         delimiter(float delimiter) {
             this.delimiter = delimiter;
             return this;

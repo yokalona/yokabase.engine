@@ -1,4 +1,4 @@
-package com.yokalona.file;
+package com.yokalona.file.exceptions;
 
 public class OffsetException extends RuntimeException {
     public OffsetException(int offset, int space) {

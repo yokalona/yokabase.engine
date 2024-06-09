@@ -1,9 +1,14 @@
-package com.yokalona.file;
+package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.file.AddressTools;
+import com.yokalona.file.exceptions.OffsetException;
+import com.yokalona.file.exceptions.PageIsToLargeException;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class DataSpace<Type> {
 
@@ -59,4 +64,18 @@ public class DataSpace<Type> {
         return this.index.size();
     }
 
+    @SuppressWarnings("unchecked")
+    public Type[]
+    read(Class<Type> type) {
+        Type[] array = (Type[]) Array.newInstance(type, this.index.size());
+        for (int i = 0; i < this.index.size(); ++i) {
+            array[i] = this.get(i);
+        }
+        return array;
+    }
+
+    public void
+    clear() {
+        this.index.clear();
+    }
 }

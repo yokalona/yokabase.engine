@@ -1,4 +1,4 @@
-package com.yokalona.file;
+package com.yokalona.file.exceptions;
 
 public class WriteOverflowException extends RuntimeException {
     public WriteOverflowException(int size) {

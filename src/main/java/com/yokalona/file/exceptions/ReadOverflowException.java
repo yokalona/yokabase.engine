@@ -1,4 +1,4 @@
-package com.yokalona.file;
+package com.yokalona.file.exceptions;
 
 public class ReadOverflowException extends RuntimeException {
     public ReadOverflowException(int size, int index) {

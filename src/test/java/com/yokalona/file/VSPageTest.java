@@ -1,6 +1,7 @@
 package com.yokalona.file;
 
 import com.yokalona.array.serializers.primitives.StringSerializer;
+import com.yokalona.file.page.VSPage;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -73,6 +74,18 @@ class VSPageTest {
             assertEquals(expected.size(), page.size());
             page.append(string);
             expected.add(string);
+            for (int index = 0; index < expected.size(); index++) {
+                String expectedStr = expected.get(index);
+                String actualStr = page.get(index);
+                assertEquals(expectedStr, actualStr);
+            }
+            page.defragmentation(String.class);
+            string = randomString(3, 100);
+            while (page.fits(StringSerializer.INSTANCE.sizeOf(string))) {
+                page.append(string);
+                expected.add(string);
+                string = randomString(3, 100);
+            }
             for (int index = 0; index < expected.size(); index++) {
                 String expectedStr = expected.get(index);
                 String actualStr = page.get(index);

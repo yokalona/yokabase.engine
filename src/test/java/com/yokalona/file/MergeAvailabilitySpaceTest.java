@@ -1,5 +1,8 @@
 package com.yokalona.file;
 
+import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
+import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.file.page.MergeAvailabilitySpace;
 import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
 

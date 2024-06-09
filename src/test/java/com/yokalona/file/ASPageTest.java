@@ -1,6 +1,11 @@
 package com.yokalona.file;
 
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.file.exceptions.NegativePageSizeException;
+import com.yokalona.file.exceptions.PageIsToLargeException;
+import com.yokalona.file.exceptions.ReadOverflowException;
+import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.file.page.ASPage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,8 +22,8 @@ class ASPageTest {
     @Test
     void testCreateThrows() {
         assertThrows(PageIsToLargeException.class, () -> ASPage.create(129, new CompactIntegerSerializer(2)));
-        assertThrows(NegativePageSize.class, () -> ASPage.create(0, new CompactIntegerSerializer(2)));
-        assertThrows(NegativePageSize.class, () -> ASPage.create(-1, new CompactIntegerSerializer(2)));
+        assertThrows(NegativePageSizeException.class, () -> ASPage.create(0, new CompactIntegerSerializer(2)));
+        assertThrows(NegativePageSizeException.class, () -> ASPage.create(-1, new CompactIntegerSerializer(2)));
     }
 
     @Test

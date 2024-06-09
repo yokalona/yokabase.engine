@@ -1,8 +1,10 @@
-package com.yokalona.file;
+package com.yokalona.file.serializers;
 
 import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.VariableSizeSerializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.file.AddressTools;
+import com.yokalona.file.Pointer;
 
 public class PointerSerializer implements FixedSizeSerializer<Pointer> {
     public static PointerSerializer INSTANCE_2B = new PointerSerializer(2);
