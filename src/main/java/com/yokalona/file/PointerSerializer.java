@@ -32,15 +32,15 @@ public class PointerSerializer implements FixedSizeSerializer<Pointer> {
 
     @Override
     public int serialize(Pointer pointer, byte[] data, int offset) {
-        int length = serializer.serialize(pointer.length(), data, offset);
-        return length + serializer.serialize(pointer.address(), data, offset + significant);
+        int length = serializer.serialize(pointer.start(), data, offset);
+        return length + serializer.serialize(pointer.end(), data, offset + significant);
     }
 
     @Override
     public Pointer deserialize(byte[] bytes, int offset) {
-        Integer length = serializer.deserialize(bytes, offset);
-        Integer address = serializer.deserialize(bytes, offset + significant);
-        return new Pointer(length, address);
+        Integer start = serializer.deserialize(bytes, offset);
+        Integer end = serializer.deserialize(bytes, offset + significant);
+        return new Pointer(start, end);
     }
 
     public static PointerSerializer

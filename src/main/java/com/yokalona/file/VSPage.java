@@ -7,7 +7,7 @@ public class VSPage<Type> implements Page {
     private final int total;
     private final byte[] space;
     private final DataSpace<Type> dataSpace;
-    private final AvailabilitySpace pointers;
+    private final MergeAvailabilitySpace pointers;
     private final VariableSizeSerializer<Type> serializer;
 
     private VSPage(VariableSizeSerializer<Type> serializer, byte[] space, int offset, int size, float delimiter) {
@@ -15,7 +15,7 @@ public class VSPage<Type> implements Page {
         this.serializer = serializer;
         int available = (int) (size * delimiter);
         this.total = size - available;
-        this.pointers = new AvailabilitySpace(available, size, space, offset);
+        this.pointers = new MergeAvailabilitySpace(available, size, space, offset);
         this.dataSpace = new DataSpace<>(space, offset + available, this.total, serializer);
         this.free = this.total - dataSpace.pointerSize();
     }

@@ -1,18 +1,13 @@
 package com.yokalona.file;
 
-public record Pointer(int length, int address) {
+public record Pointer(int start, int end) {
     public Pointer
-    adjust(int deltaLength, int deltaAddress) {
-        return new Pointer(length + deltaLength, address + deltaAddress);
+    adjust(int ΔStart, int ΔEnd) {
+        return new Pointer(start + ΔStart, end + ΔEnd);
     }
 
     public int
-    start() {
-        return address - length;
-    }
-
-    public int
-    end() {
-        return address;
+    length() {
+        return end - start;
     }
 }

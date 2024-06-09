@@ -68,8 +68,7 @@ public class ASPage<Type> implements Page, Iterable<Type> {
 
     public synchronized int
     append(Type value) {
-        if (spills())
-            throw new WriteOverflowException(free());
+        if (spills()) throw new WriteOverflowException(free());
         int offset = offset(size);
         serialize(value, offset);
         return serializeLength(++size);
@@ -184,6 +183,11 @@ public class ASPage<Type> implements Page, Iterable<Type> {
         };
     }
 
+    public boolean
+    spills() {
+        return (size + 1) * serializer.sizeOf() > space;
+    }
+
     private int
     offset(int index) {
         return offset + Short.BYTES + index * serializer.sizeOf();
@@ -192,11 +196,6 @@ public class ASPage<Type> implements Page, Iterable<Type> {
     private boolean
     outbound(int index) {
         return 0 > index || index >= size;
-    }
-
-    private boolean
-    spills() {
-        return (size + 1) * serializer.sizeOf() >= space;
     }
 
     private void

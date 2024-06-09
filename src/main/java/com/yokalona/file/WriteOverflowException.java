@@ -8,4 +8,8 @@ public class WriteOverflowException extends RuntimeException {
     public WriteOverflowException(int size, int index) {
         super(String.format("Attempted to write to index %d outside of page borders [0, %d)", index, size));
     }
+
+    public WriteOverflowException(String message) {
+        super(message);
+    }
 }
