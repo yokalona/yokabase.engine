@@ -66,7 +66,7 @@ public class MergeAvailabilitySpace {
         return this.pointers.size();
     }
 
-    public void
+    void
     free(int end) {
         this.pointers.clear();
         this.pointers.append(new Pointer(start, end));

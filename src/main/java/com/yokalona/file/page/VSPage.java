@@ -2,6 +2,7 @@ package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.VariableSizeSerializer;
 import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
+import com.yokalona.file.exceptions.WriteOverflowException;
 
 public class VSPage<Type> implements Page<Type> {
     private int free;
@@ -27,6 +28,21 @@ public class VSPage<Type> implements Page<Type> {
         return dataSpace.get(index);
     }
 
+    public Type[]
+    read(Class<Type> type) {
+        return dataSpace.read(type);
+    }
+
+    public void
+    set(int index, Type value) {
+        int address = dataSpace.address(index);
+        int size = serializer.sizeOf(dataSpace.pointerSize(), space, address);
+        int next = serializer.sizeOf(value);
+        if (size < next) throw new WriteOverflowException("New record is to large");
+        if (next < size) pointers.free0(size - next, address + next);
+        dataSpace.set(index, value);
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public int
@@ -49,7 +65,7 @@ public class VSPage<Type> implements Page<Type> {
     remove(int index) {
         int address = dataSpace.address(index);
         int size = serializer.sizeOf(dataSpace.pointerSize(), space, address);
-        this.pointers.free(size, address);
+        this.pointers.free0(size, address);
         int count = dataSpace.remove(index);
         this.pointers.reduce(-dataSpace.pointerSize());
         this.free += size + dataSpace.pointerSize();

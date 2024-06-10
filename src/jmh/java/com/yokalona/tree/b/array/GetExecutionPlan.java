@@ -37,7 +37,7 @@ public class GetExecutionPlan {
     public void
     setUp() throws IOException {
         path = Files.createTempDirectory("jmh");
-        this.array = new PersistentArray<>(size, CompactInteger.descriptor, FixedObjectLayout::new,
+        this.array = new PersistentArray<>(size, CompactInteger.serializer, FixedObjectLayout::new,
                 configure(file(path.resolve("array.linear")).cached())
                         .memory(chunked(factor()))
                         .read(read().breakOnLoaded().chunked(factor()))
