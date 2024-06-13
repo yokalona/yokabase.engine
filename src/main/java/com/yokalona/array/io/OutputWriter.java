@@ -40,6 +40,12 @@ public class OutputWriter implements AutoCloseable {
         position = 0;
     }
 
+    public void
+    flushAll() throws IOException {
+        position = buffer.length;
+        flush();
+    }
+
     @Override
     public void
     close() throws Exception {

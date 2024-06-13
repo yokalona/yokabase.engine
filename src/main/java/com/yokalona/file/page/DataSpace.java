@@ -4,7 +4,7 @@ import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.AddressTools;
 import com.yokalona.file.exceptions.OffsetException;
-import com.yokalona.file.exceptions.PageIsToLargeException;
+import com.yokalona.file.exceptions.PageIsTooLargeException;
 
 import java.lang.reflect.Array;
 
@@ -16,12 +16,12 @@ public class DataSpace<Type> {
     private final Serializer<Type> serializer;
 
     public DataSpace(byte[] space, int offset, int size, Serializer<Type> serializer) {
-        if (size > space.length + offset) throw new PageIsToLargeException(size);
+        if (size > space.length + offset) throw new PageIsTooLargeException(size);
         if (offset < 0 || offset + size > space.length) throw new OffsetException(offset, space.length);
         this.space = space;
         this.serializer = serializer;
         this.significantBytes = AddressTools.significantBytes(size);
-        this.index = ASPage.create(size, offset, new CompactIntegerSerializer(significantBytes), space);
+        this.index = new ASPage<>(new CompactIntegerSerializer(significantBytes), new ASPage.Configuration(space, offset, size));
     }
 
     public byte

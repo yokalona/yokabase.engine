@@ -8,7 +8,7 @@ public class InputReader {
     private final RandomAccessFile raf;
     private int pointer = 0;
 
-    public InputReader(byte[] buffer, RandomAccessFile raf) {
+    public InputReader(RandomAccessFile raf, byte[] buffer) {
         this.raf = raf;
         this.buffer = buffer;
         pointer = buffer.length;

@@ -358,7 +358,7 @@ public class PersistentArray<Type> implements AutoCloseable {
 
         try (storage) {
             RandomAccessFile raf = storage.get();
-            InputReader reader = new InputReader(reusableBuffer, raf);
+            InputReader reader = new InputReader(raf, reusableBuffer);
             dataLayout.seek(index, raf);
             boolean shouldSeek = false;
             byte[] datum = new byte[type.sizeOf()];

@@ -1,11 +1,12 @@
 package com.yokalona.file.page;
 
+import com.yokalona.annotations.PerformanceImpact;
+import com.yokalona.annotations.TestOnly;
 import com.yokalona.array.serializers.FixedSizeSerializer;
-import com.yokalona.file.Header;
-import com.yokalona.file.exceptions.NegativePageSizeException;
-import com.yokalona.file.exceptions.PageIsToLargeException;
-import com.yokalona.file.exceptions.ReadOverflowException;
-import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
+import com.yokalona.array.serializers.primitives.LongSerializer;
+import com.yokalona.file.exceptions.*;
+import com.yokalona.file.headers.CRC64Jones;
 
 import java.lang.reflect.Array;
 import java.util.Comparator;
@@ -13,29 +14,26 @@ import java.util.Iterator;
 
 public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
-    private int size = 0;
-    private final int space;
-    private final int offset;
-    private final byte[] page;
+    public static final int MAX_AS_PAGE_SIZE = 4 * 1024 * 1024;
+
+    private static final long CRC = 5928236041702360388L;
+    private static final long START = 4707194276831113265L;
+    private static final int HEADER = Long.BYTES * 2;
+
+    private int size;
+    private final Configuration configuration;
     private final FixedSizeSerializer<Type> serializer;
 
-    private ASPage(int space, int offset, byte[] page, FixedSizeSerializer<Type> serializer) {
-        this.page = page;
-        this.space = space;
-        this.offset = offset;
+    public ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration) {
+        this(0, serializer, configuration);
+    }
+
+    private ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
-    }
-
-    public static <Type> ASPage<Type>
-    create(int size, FixedSizeSerializer<Type> serializer) {
-        if (size <= 0) throw new NegativePageSizeException();
-        else if (size > 128) throw new PageIsToLargeException(size * 1024);
-        return create(size * 1024, 0, serializer, new byte[size * 1024]);
-    }
-
-    public static <Type> ASPage<Type>
-    create(int space, int offset, FixedSizeSerializer<Type> serializer, byte[] page) {
-        return new ASPage<>(space, offset, page, serializer);
+        this.configuration = configuration;
+        write(START, configuration, configuration.offset);
+        write(CRC, configuration, configuration.offset + Long.BYTES);
+        serializeSize(this.size = size);
     }
 
     @Override
@@ -50,7 +48,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     public synchronized Type[]
     read(Class<Type> type) {
         Type[] array = (Type[]) Array.newInstance(type, size);
-        for (int index = 0; index < size; index ++) {
+        for (int index = 0; index < size; index++) {
             array[index] = deserialize(offset(index));
         }
         return array;
@@ -67,9 +65,9 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     insert(int index, Type value) {
         if (0 > index || index > size || spills()) throw new WriteOverflowException(size, index);
         int offset = offset(index);
-        System.arraycopy(page, offset, page, offset(index + 1), (size - index) * serializer.sizeOf());
+        System.arraycopy(configuration.page, offset, configuration.page, offset(index + 1), (size - index) * serializer.sizeOf());
         serialize(value, offset);
-        serializeLength(++size);
+        serializeSize(++size);
     }
 
     @Override
@@ -78,7 +76,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         if (spills()) throw new WriteOverflowException(free());
         int offset = offset(size);
         serialize(value, offset);
-        return serializeLength(++size);
+        return serializeSize(++size);
     }
 
     public synchronized void
@@ -107,13 +105,13 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     public synchronized int
     remove(int index) {
         if (outbound(index)) throw new WriteOverflowException(size, index);
-        System.arraycopy(page, offset(index + 1), page, offset(index), (size - index - 1) * serializer.sizeOf());
-        return serializeLength(--size);
+        System.arraycopy(configuration.page, offset(index + 1), configuration.page, offset(index), (size - index - 1) * serializer.sizeOf());
+        return serializeSize(--size);
     }
 
     public synchronized void
     clear() {
-        serializeLength(this.size = 0);
+        serializeSize(this.size = 0);
     }
 
     public synchronized Type
@@ -139,28 +137,28 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     @Override
     public synchronized int
     free() {
-        return space - occupied();
+        return configuration.length - occupied();
     }
 
     public int
-    space() {
-        return space;
+    length() {
+        return configuration.length;
     }
 
     @Override
     public int
     occupied() {
-        return Short.BYTES + size * serializer.sizeOf();
+        return offset(0) + size * serializer.sizeOf();
     }
 
     public int
     offset() {
-        return offset;
+        return configuration.offset;
     }
 
     private Type
     deserialize(int offset) {
-        return serializer.deserialize(page, offset);
+        return serializer.deserialize(configuration.page, offset);
     }
 
     @Override
@@ -168,11 +166,13 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     iterator() {
         return new Iterator<>() {
             private int current = -1;
+            private boolean switched = false;
 
             @Override
             public boolean hasNext() {
+                switched = true;
                 if (current + 1 < size) {
-                    current ++;
+                    current++;
                     return true;
                 } else {
                     return false;
@@ -186,9 +186,17 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
             @Override
             public void remove() {
-                ASPage.this.remove(current);
+                if (!switched) throw new IllegalStateException();
+                ASPage.this.remove(current--);
+                switched = false;
             }
         };
+    }
+
+    @Override
+    public void
+    flush() {
+        serializeCRC();
     }
 
     public boolean
@@ -198,7 +206,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int
     offset(int index) {
-        return offset + Short.BYTES + index * serializer.sizeOf();
+        return configuration.offset + HEADER + Short.BYTES + index * serializer.sizeOf();
     }
 
     private boolean
@@ -208,15 +216,56 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private void
     serialize(Type value, int offset) {
-        serializer.serialize(value, page, offset);
+        serializer.serialize(value, configuration.page, offset);
     }
 
     private int
-    serializeLength(int value) {
-        for (int position = Short.BYTES - 1; position >= 0; position--) {
-            page[offset + position] = (byte) (value & 0xFF);
-            value = (short) (value >> 8);
+    serializeSize(int value) {
+        return IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
+    }
+
+    @PerformanceImpact
+    private void
+    serializeCRC() {
+        long crc = calculateCRC(configuration.page, configuration.offset, configuration.length);
+        write(crc, configuration, configuration.offset + Long.BYTES);
+    }
+
+    private static long
+    calculateCRC(byte[] page, int offset, int length) {
+        return CRC64Jones.calculate(page, offset + HEADER, length - HEADER);
+    }
+
+    public static <Type> ASPage<Type>
+    read(FixedSizeSerializer<Type> serializer, Configuration configuration) {
+        long expected = calculateCRC(configuration.page, configuration.offset, configuration.length);
+        long actual = LongSerializer.INSTANCE.deserializeCompact(configuration.page, configuration.offset + Long.BYTES);
+        if (expected != actual) throw new CRCMismatchException();
+        return new ASPage<>(deserializeSize(configuration.page, configuration.offset + HEADER), serializer, configuration);
+    }
+
+    private static int
+    deserializeSize(byte[] page, int offset) {
+        return IntegerSerializer.INSTANCE.deserializeCompact(Short.BYTES, page, offset);
+    }
+
+    private static void
+    write(long crc, Configuration configuration, int offset) {
+        LongSerializer.INSTANCE.serializeCompact(crc, Long.BYTES, configuration.page, offset);
+    }
+
+    public record Configuration(byte[] page, int offset, int length) {
+
+        @TestOnly
+        public Configuration(int lengthKb) {
+            this(new byte[lengthKb * 1024], 0, lengthKb * 1024);
         }
-        return value;
+
+        public Configuration {
+            if (offset < 0) throw new NegativeOffsetException();
+            if (length == 0) throw new PageIsTooSmallException();
+            if (length < 0) throw new NegativePageSizeException();
+            if (offset + length > page.length || length > MAX_AS_PAGE_SIZE) throw new PageIsTooLargeException(length);
+        }
     }
 }

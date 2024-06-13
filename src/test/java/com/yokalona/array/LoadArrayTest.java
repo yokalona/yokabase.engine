@@ -64,7 +64,7 @@ class LoadArrayTest {
                 configuration.write().size(),
                 configuration.file().buffer(),
                 CompactInteger.serializer.sizeOf()));
-        int repeats = 5;
+        int repeats = 1;
         for (int i = 0; i < repeats; i++) {
             printHeader(i + 1, repeats);
             writeLinear += printStatistic("Linear write", writeLinear(length, configuration, statist), statist);

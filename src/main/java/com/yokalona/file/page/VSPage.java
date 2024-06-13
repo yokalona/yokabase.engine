@@ -3,6 +3,7 @@ package com.yokalona.file.page;
 import com.yokalona.array.serializers.VariableSizeSerializer;
 import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
 import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.file.headers.CRC64Jones;
 
 public class VSPage<Type> implements Page<Type> {
     private int free;
@@ -11,13 +12,14 @@ public class VSPage<Type> implements Page<Type> {
     private final DataSpace<Type> dataSpace;
     private final MergeAvailabilitySpace pointers;
     private final VariableSizeSerializer<Type> serializer;
+    private final CRC64Jones crc64JonesHeader = new CRC64Jones();
 
-    private VSPage(VariableSizeSerializer<Type> serializer, byte[] space, int offset, int size, float delimiter) {
+    public VSPage(VariableSizeSerializer<Type> serializer, byte[] space, int offset, int size, float delimiter) {
         this.space = space;
         this.serializer = serializer;
         int available = (int) (size * delimiter);
         this.total = size - available;
-        this.pointers = new MergeAvailabilitySpace(available, size, space, offset);
+        this.pointers = new MergeAvailabilitySpace(available, size, space, 8 + offset);
         this.dataSpace = new DataSpace<>(space, offset + available, this.total, serializer);
         this.free = this.total - dataSpace.pointerSize();
     }
@@ -70,6 +72,17 @@ public class VSPage<Type> implements Page<Type> {
         this.pointers.reduce(-dataSpace.pointerSize());
         this.free += size + dataSpace.pointerSize();
         return count;
+    }
+
+    @Override
+    public void flush() {
+
+    }
+
+    public boolean
+    fits(Type value) {
+        int size = serializer.sizeOf(value);
+        return fits(size);
     }
 
     public boolean
@@ -137,7 +150,9 @@ public class VSPage<Type> implements Page<Type> {
 
         public VSPage<Type>
         configure() {
-            if (size == 0) size = this.space.length - offset;
+            if (space == null && offset == 0) space = new byte[size];
+            if (space == null) throw new NullPointerException();
+            if (size == 0) size = space.length - offset;
             if (0 > offset || offset > space.length) throw new IllegalArgumentException();
             if (offset + size > space.length) throw new IllegalArgumentException();
             if (delimiter < 0) throw new IllegalArgumentException();

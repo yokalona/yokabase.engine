@@ -28,7 +28,7 @@ public class MergeAvailabilitySpace {
      */
     public MergeAvailabilitySpace(int size, int total, byte[] space, int offset) {
         this.border = total;
-        this.pointers = ASPage.create(size, offset, PointerSerializer.forSpace(total), space);
+        this.pointers = new ASPage<>(PointerSerializer.forSpace(total), new ASPage.Configuration(space, offset, size));
         this.pointers.append(new Pointer(this.start = offset + size, total));
     }
 

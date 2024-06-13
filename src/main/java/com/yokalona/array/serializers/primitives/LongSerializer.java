@@ -53,7 +53,7 @@ public class LongSerializer implements FixedSizeSerializer<Long> {
 
     public long
     deserializeCompact(int length, byte[] bytes, int offset) {
-        int value = 0;
+        long value = 0;
         for (int index = offset; index < offset + length; index ++) {
             value = (value << 8) + (bytes[index] & 0xFF);
         }
