@@ -1,8 +1,7 @@
-package com.yokalona.file;
+package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.exceptions.*;
-import com.yokalona.file.page.ASPage;
 import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
 

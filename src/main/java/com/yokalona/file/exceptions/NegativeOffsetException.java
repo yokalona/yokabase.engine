@@ -1,4 +1,4 @@
 package com.yokalona.file.exceptions;
 
-public class NegativeOffsetException extends RuntimeException {
+public class NegativeOffsetException extends IllegalArgumentException {
 }

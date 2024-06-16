@@ -1,27 +1,24 @@
 package com.yokalona.file.page;
 
+import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.AddressTools;
-import com.yokalona.file.exceptions.OffsetException;
-import com.yokalona.file.exceptions.PageIsTooLargeException;
 
 import java.lang.reflect.Array;
 
 public class DataSpace<Type> {
 
-    private final byte[] space;
     private final byte significantBytes;
     private final ASPage<Integer> index;
     private final Serializer<Type> serializer;
+    private final ASPage.Configuration configuration;
 
-    public DataSpace(byte[] space, int offset, int size, Serializer<Type> serializer) {
-        if (size > space.length + offset) throw new PageIsTooLargeException(size);
-        if (offset < 0 || offset + size > space.length) throw new OffsetException(offset, space.length);
-        this.space = space;
+    public DataSpace(Serializer<Type> serializer, ASPage.Configuration configuration) {
         this.serializer = serializer;
-        this.significantBytes = AddressTools.significantBytes(size);
-        this.index = new ASPage<>(new CompactIntegerSerializer(significantBytes), new ASPage.Configuration(space, offset, size));
+        this.configuration = configuration;
+        this.significantBytes = AddressTools.significantBytes(configuration.offset() + configuration.length());
+        this.index = new ASPage<>(new CompactIntegerSerializer(significantBytes), configuration);
     }
 
     public byte
@@ -32,7 +29,7 @@ public class DataSpace<Type> {
     public Type
     get(int index) {
         Integer address = this.index.get(index);
-        return serializer.deserialize(space, address);
+        return serializer.deserialize(configuration.page(), address);
     }
 
     public int
@@ -43,12 +40,12 @@ public class DataSpace<Type> {
     public void
     set(int index, Type value) {
         Integer address = this.index.get(index);
-        serializer.serialize(value, space, address);
+        serializer.serialize(value, configuration.page(), address);
     }
 
     public int
     insert(int address, Type value) {
-        serializer.serialize(value, space, address);
+        serializer.serialize(value, configuration.page(), address);
         return this.index.append(address);
     }
 
@@ -62,18 +59,22 @@ public class DataSpace<Type> {
         return this.index.size();
     }
 
+    @PerformanceImpact
     @SuppressWarnings("unchecked")
     public Type[]
     read(Class<Type> type) {
         Type[] array = (Type[]) Array.newInstance(type, this.index.size());
-        for (int i = 0; i < this.index.size(); ++i) {
-            array[i] = this.get(i);
-        }
+        for (int i = 0; i < this.index.size(); ++i) array[i] = this.get(i);
         return array;
     }
 
     public void
     clear() {
         this.index.clear();
+    }
+
+    public int
+    occupied() {
+        return this.index.occupied();
     }
 }

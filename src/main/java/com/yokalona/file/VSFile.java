@@ -72,7 +72,7 @@ public class VSFile<Type> implements Index<Type> {
                 InputReader in = new InputReader(storage.get(), sharedBuffer);
                 storage.peek().seek(address);
                 in.refill();
-                this.page = new VSPage<>(serializer, sharedBuffer, 0, 4096, .1F);
+                this.page = null;//new VSPage<>(serializer, sharedBuffer, 0, 4096, .1F);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

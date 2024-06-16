@@ -1,11 +1,12 @@
 package com.yokalona.file.page;
 
+import com.yokalona.annotations.Approximate;
 import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.annotations.SpawnSubprocess;
-import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
 import com.yokalona.file.Pointer;
-import com.yokalona.file.serializers.PointerSerializer;
+import com.yokalona.file.exceptions.NoFreeSpaceLeftException;
 import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.file.serializers.PointerSerializer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,67 +15,72 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class MergeAvailabilitySpace {
+    private int free;
     private int start;
-    private final int border;
+    private final int end;
     private final ASPage<Pointer> pointers;
 
-    /**
-     * Creates availability address space, the structure that controls blocks of bytes ready to be written to.
-     *
-     * @param size   of allocated space inside total space to be taken by availability space
-     * @param total  address space
-     * @param space  actual space represented as a byte array
-     * @param offset within actual space
-     */
-    public MergeAvailabilitySpace(int size, int total, byte[] space, int offset) {
-        this.border = total;
-        this.pointers = new ASPage<>(PointerSerializer.forSpace(total), new ASPage.Configuration(space, offset, size));
-        this.pointers.append(new Pointer(this.start = offset + size, total));
+    public MergeAvailabilitySpace(Configuration configuration) {
+        this.start = configuration.offset + configuration.dataSpace;
+        this.end = configuration.totalSpace;
+        this.pointers = new ASPage<>(PointerSerializer.forSpace(configuration.totalSpace),
+                new ASPage.Configuration(configuration.page, configuration.offset, configuration.dataSpace));
+        this.pointers.append(new Pointer(this.start, this.end));
+        this.free = this.end - this.start;
     }
 
     public int
     alloc(int size) {
-        int address = allocate(size, false);
+        int address = allocate(size);
         if (address < 0) {
             defragmentation();
-            address = allocate(size, false);
+            address = allocate(size);
         }
         return address;
     }
 
+    @Approximate
     public boolean
     fits(int size) {
-        return allocate(size, true) > 0;
+        return available() >= size;
     }
 
     public void
     reduce(int by) {
-        start += by;
+        if (this.pointers.size() == 0) throw new NoFreeSpaceLeftException();
+        this.start += by;
+        this.free -= by;
     }
 
     public int
     free0(int size, int address) {
-        if (address < start) throw new WriteOverflowException("");
-        if (address + size > border) throw new WriteOverflowException("Freeing more memory, that is accessible");
+        if (address < start)
+            throw new WriteOverflowException("Attempt to free space outside the available space");
+        if (address + size > end) throw new WriteOverflowException("Freeing more memory, that is accessible");
         Pointer pointer = new Pointer(address, address + size);
         int index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
         if (index < 0) {
-            if (this.pointers.spills()) defragmentation();
-            this.pointers.insert(-(index + 1), pointer);
+            if (this.pointers.spills()) {
+                defragmentation();
+                index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
+                if (index < 0) this.pointers.insert(-(index + 1), pointer);
+                else this.pointers.set(index, pointer);
+            } else this.pointers.insert(-(index + 1), pointer);
         } else this.pointers.set(index, pointer);
-        assert assertOrder();
+        this.free += size;
         return this.pointers.size();
     }
 
     void
-    free(int end) {
+    freeImmediately(int end) {
         this.pointers.clear();
         this.pointers.append(new Pointer(start, end));
+        this.free += end;
     }
 
     public int
-    free(int size, int address) {
-        if (address + size > border) throw new WriteOverflowException("Freeing more memory, that is accessible");
+    freeImmediately(int size, int address) {
+        if (address + size > end) throw new WriteOverflowException("Freeing more memory, that is accessible");
         Pointer pointer = new Pointer(address, address + size);
         Pointer[] pointers = this.pointers.read(Pointer.class);
         List<Pointer> merged = new ArrayList<>();
@@ -86,19 +92,20 @@ public class MergeAvailabilitySpace {
         merged.add(pointer);
         while (index < pointers.length) merged.add(pointers[index++]);
         this.pointers.clear();
+        this.free = 0;
         for (Pointer p : merged) {
             if (this.pointers.spills()) defragmentation();
             this.pointers.append(p);
+            this.free += p.length();
         }
-        assert assertOrder();
         return this.pointers.size();
     }
 
+    @Approximate
+    @PerformanceImpact
     public int
     available() {
-        return Arrays.stream(this.pointers.read(Pointer.class))
-                .mapToInt(Pointer::length)
-                .sum();
+        return free;
     }
 
     public int
@@ -110,7 +117,7 @@ public class MergeAvailabilitySpace {
     public void
     defragmentation() {
         Pointer[] pointers = this.pointers.read(Pointer.class);
-        if (pointers.length == 0) throw new NoFreeSpaceAvailableException();
+        if (pointers.length == 0) throw new NoFreeSpaceLeftException();
         LinkedList<Pointer> merged = new LinkedList<>();
         merged.add(pointers[0]);
         for (int i = 1; i < pointers.length; i++) {
@@ -123,30 +130,20 @@ public class MergeAvailabilitySpace {
             }
         }
         this.pointers.clear();
-        for (Pointer p : merged) this.pointers.append(p);
+        this.free = 0;
+        for (Pointer p : merged) {
+            this.pointers.append(p);
+            this.free += p.length();
+        }
     }
 
     public int
     maxAddress() {
-        return border;
-    }
-
-    @PerformanceImpact
-    private boolean
-    assertOrder() {
-        Pointer[] pointers = this.pointers.read(Pointer.class);
-        if (pointers.length < 1) return true;
-        int start = pointers[0].start();
-        for (int i = 1; i < pointers.length; i++) {
-            Pointer pointer = pointers[i];
-            if (pointer.start() < start) return false;
-            start = pointer.start();
-        }
-        return true;
+        return end;
     }
 
     private int
-    allocate(int size, boolean intermediate) {
+    allocate(int size) {
         int selected = -1, delta = Integer.MAX_VALUE;
         Pointer[] pointers = this.pointers.read(Pointer.class);
         for (int index = 0; index < pointers.length; index++) {
@@ -155,14 +152,17 @@ public class MergeAvailabilitySpace {
             if (delta == 0) break;
         }
         if (selected < 0) return -1;
-        else if (intermediate) return 1;
         if (delta != 0) this.pointers.set(selected, pointers[selected].adjust(+0, -size));
         else this.pointers.remove(selected);
+        this.free -= size;
         return pointers[selected].end() - size;
     }
 
     private static boolean
     overlaps(Pointer pointer, Pointer pointers) {
         return pointer.start() <= pointers.end() && pointers.start() <= pointer.end();
+    }
+
+    public record Configuration(byte[] page, int offset, int dataSpace, int totalSpace) {
     }
 }

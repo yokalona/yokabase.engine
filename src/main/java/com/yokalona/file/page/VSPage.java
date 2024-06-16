@@ -1,27 +1,26 @@
 package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.VariableSizeSerializer;
-import com.yokalona.file.exceptions.NoFreeSpaceAvailableException;
-import com.yokalona.file.exceptions.WriteOverflowException;
-import com.yokalona.file.headers.CRC64Jones;
+import com.yokalona.file.exceptions.*;
 
 public class VSPage<Type> implements Page<Type> {
-    private int free;
-    private final int total;
-    private final byte[] space;
-    private final DataSpace<Type> dataSpace;
-    private final MergeAvailabilitySpace pointers;
-    private final VariableSizeSerializer<Type> serializer;
-    private final CRC64Jones crc64JonesHeader = new CRC64Jones();
+    public static final int MAX_VS_PAGE_SIZE = 4 * 1024 * 1024;
 
-    public VSPage(VariableSizeSerializer<Type> serializer, byte[] space, int offset, int size, float delimiter) {
-        this.space = space;
+    private static final long CRC = 5928236041702360388L;
+
+    private int free;
+    private final DataSpace<Type> dataSpace;
+    private final Configuration configuration;
+    private final VariableSizeSerializer<Type> serializer;
+    private final MergeAvailabilitySpace availabilitySpace;
+
+    public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
-        int available = (int) (size * delimiter);
-        this.total = size - available;
-        this.pointers = new MergeAvailabilitySpace(available, size, space, 8 + offset);
-        this.dataSpace = new DataSpace<>(space, offset + available, this.total, serializer);
-        this.free = this.total - dataSpace.pointerSize();
+        this.configuration = configuration;
+        this.dataSpace = new DataSpace<>(serializer, new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace));
+        this.availabilitySpace = new MergeAvailabilitySpace(new MergeAvailabilitySpace.Configuration(
+                configuration.page, configuration.offset, configuration.availabilitySpace, configuration.page.length));
+        this.free = configuration.dataSpace - dataSpace.occupied();
     }
 
     @Override
@@ -38,10 +37,10 @@ public class VSPage<Type> implements Page<Type> {
     public void
     set(int index, Type value) {
         int address = dataSpace.address(index);
-        int size = serializer.sizeOf(dataSpace.pointerSize(), space, address);
+        int size = serializer.sizeOf(configuration.page, address);
         int next = serializer.sizeOf(value);
         if (size < next) throw new WriteOverflowException("New record is to large");
-        if (next < size) pointers.free0(size - next, address + next);
+        if (next < size) availabilitySpace.free0(size - next, address + next);
         dataSpace.set(index, value);
     }
 
@@ -50,14 +49,15 @@ public class VSPage<Type> implements Page<Type> {
     public int
     append(Type value) {
         int size = serializer.sizeOf(value);
-        if (free < size + dataSpace.pointerSize()) throw new NoFreeSpaceAvailableException();
-        int address = pointers.alloc(size);
+        if (free > size + dataSpace.pointerSize() && !availabilitySpace.fits(size)) availabilitySpace.defragmentation();
+        else if (free < size + dataSpace.pointerSize()) throw new NoFreeSpaceLeftException();
+        int address = availabilitySpace.alloc(size);
         if (address < 0) {
             defragmentation((Class<Type>) value.getClass());
-            address = pointers.alloc(size);
+            address = availabilitySpace.alloc(size);
             if (address < 0) throw new NullPointerException();
         }
-        pointers.reduce(dataSpace.pointerSize());
+        availabilitySpace.reduce(dataSpace.pointerSize());
         this.free -= (size + dataSpace.pointerSize());
         return dataSpace.insert(address, value);
     }
@@ -66,10 +66,10 @@ public class VSPage<Type> implements Page<Type> {
     public int
     remove(int index) {
         int address = dataSpace.address(index);
-        int size = serializer.sizeOf(dataSpace.pointerSize(), space, address);
-        this.pointers.free0(size, address);
+        int size = serializer.sizeOf(configuration.page, address);
+        this.availabilitySpace.free0(size, address);
         int count = dataSpace.remove(index);
-        this.pointers.reduce(-dataSpace.pointerSize());
+        this.availabilitySpace.reduce(-dataSpace.pointerSize());
         this.free += size + dataSpace.pointerSize();
         return count;
     }
@@ -88,16 +88,16 @@ public class VSPage<Type> implements Page<Type> {
     public boolean
     fits(int size) {
         return this.free > size + dataSpace.pointerSize()
-                && pointers.fits(size);
+                && availabilitySpace.fits(size);
     }
 
     public void
     defragmentation(Class<Type> type) {
         Type[] array = dataSpace.read(type);
         dataSpace.clear();
-        int max = pointers.maxAddress();
+        int max = availabilitySpace.maxAddress();
         for (Type data : array) dataSpace.insert(max = max - serializer.sizeOf(data), data);
-        pointers.free(max);
+        availabilitySpace.freeImmediately(max);
     }
 
     @Override
@@ -115,48 +115,16 @@ public class VSPage<Type> implements Page<Type> {
     @Override
     public int
     occupied() {
-        return total - free;
+        return configuration.availabilitySpace + configuration.dataSpace - free;
     }
 
-    public static class Configurer<Type> {
-        private int size;
-        private int offset;
-        private byte[] space;
-        private float delimiter = .1f;
-        private final VariableSizeSerializer<Type> serializer;
-
-        public Configurer(VariableSizeSerializer<Type> serializer) {
-            this.serializer = serializer;
-        }
-
-        public Configurer<Type>
-        on(byte[] space, int offset) {
-            this.space = space;
-            this.offset = offset;
-            return this;
-        }
-
-        public Configurer<Type>
-        ofSize(int size) {
-            this.size = size;
-            return this;
-        }
-
-        public Configurer<Type>
-        delimiter(float delimiter) {
-            this.delimiter = delimiter;
-            return this;
-        }
-
-        public VSPage<Type>
-        configure() {
-            if (space == null && offset == 0) space = new byte[size];
-            if (space == null) throw new NullPointerException();
-            if (size == 0) size = space.length - offset;
-            if (0 > offset || offset > space.length) throw new IllegalArgumentException();
-            if (offset + size > space.length) throw new IllegalArgumentException();
-            if (delimiter < 0) throw new IllegalArgumentException();
-            return new VSPage<>(serializer, space, offset, size, delimiter);
+    public record Configuration(byte[] page, int offset, int availabilitySpace, int dataSpace) {
+        public Configuration {
+            if (offset < 0) throw new NegativeOffsetException();
+            if (availabilitySpace < 128) throw new PageIsTooSmallException();
+            if (dataSpace < 1024) throw new PageIsTooSmallException();
+            int size = offset + availabilitySpace + dataSpace;
+            if (page.length < size) throw new PageIsTooLargeException(size);
         }
     }
 }

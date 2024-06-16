@@ -148,7 +148,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     @Override
     public int
     occupied() {
-        return offset(0) + size * serializer.sizeOf();
+        return (offset(0) - configuration.offset) + size * serializer.sizeOf();
     }
 
     public int
@@ -221,7 +221,8 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int
     serializeSize(int value) {
-        return IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
+        IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
+        return value;
     }
 
     @PerformanceImpact
@@ -259,6 +260,10 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         @TestOnly
         public Configuration(int lengthKb) {
             this(new byte[lengthKb * 1024], 0, lengthKb * 1024);
+        }
+
+        public Configuration(byte[] page) {
+            this(page, 0, page.length);
         }
 
         public Configuration {
