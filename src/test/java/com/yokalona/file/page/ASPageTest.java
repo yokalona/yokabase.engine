@@ -1,6 +1,7 @@
 package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.file.Cache;
 import com.yokalona.file.exceptions.*;
 import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
@@ -265,9 +266,9 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        Integer[] read = page.read(Integer.class);
-        for (int i = 0; i < read.length; i++) {
-            assertEquals(i, read[i]);
+        Cache<Integer> read = page.read();
+        for (int i = 0; i < read.length(); i++) {
+            assertEquals(i, read.get(i));
         }
     }
 
@@ -278,9 +279,11 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        Integer[] read = page.read(Integer.class);
-        TestHelper.shuffle(read);
-        for (Integer datum : read) {
+        Cache<Integer> read = page.read();
+        int [] indexes = new int [read.length()];
+        TestHelper.shuffle(indexes);
+        for (int ind : indexes) {
+            Integer datum = read.get(ind);
             assertEquals(datum, page.find(datum, Integer::compare));
         }
         page.remove(44);
@@ -308,13 +311,15 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        Integer[] read = page.read(Integer.class);
+        Cache<Integer> read = page.read();
+        Integer[] array = new Integer[read.length()];
+        for (int ind = 0; ind < array.length; ind++) {array[ind] = read.get(ind);}
         Iterator<Integer> iterator = page.iterator();
         index = 0;
         while (iterator.hasNext()) {
             Integer value = iterator.next();
             iterator.remove();
-            assertEquals(read[index ++], value);
+            assertEquals(array[index ++], value);
         }
     }
 

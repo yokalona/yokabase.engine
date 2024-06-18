@@ -5,16 +5,25 @@ import com.yokalona.annotations.TestOnly;
 import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.array.serializers.primitives.LongSerializer;
-import com.yokalona.file.exceptions.*;
+import com.yokalona.file.Cache;
+import com.yokalona.file.CachedArrayProvider;
+import com.yokalona.file.exceptions.CRCMismatchException;
+import com.yokalona.file.exceptions.NegativeOffsetException;
+import com.yokalona.file.exceptions.NegativePageSizeException;
+import com.yokalona.file.exceptions.PageIsTooLargeException;
+import com.yokalona.file.exceptions.PageIsTooSmallException;
+import com.yokalona.file.exceptions.ReadOverflowException;
+import com.yokalona.file.exceptions.WriteOverflowException;
 import com.yokalona.file.headers.CRC64Jones;
 
-import java.lang.reflect.Array;
 import java.util.Comparator;
 import java.util.Iterator;
 
 public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     public static final int MAX_AS_PAGE_SIZE = 4 * 1024 * 1024;
+
+    public static final int MAX_CACHE_SIZE = MAX_AS_PAGE_SIZE;
 
     private static final long CRC = 5928236041702360388L;
     private static final long START = 4707194276831113265L;
@@ -24,6 +33,8 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     private final Configuration configuration;
     private final FixedSizeSerializer<Type> serializer;
 
+    private final CachedArrayProvider<Type> array;
+
     public ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration) {
         this(0, serializer, configuration);
     }
@@ -31,6 +42,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     private ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.configuration = configuration;
+        this.array = new CachedArrayProvider<>(Math.min(MAX_CACHE_SIZE, free()) / serializer.sizeOf(), this::read);
         write(START, configuration, configuration.offset);
         write(CRC, configuration, configuration.offset + Long.BYTES);
         serializeSize(this.size = size);
@@ -40,17 +52,17 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     public synchronized Type
     get(int index) {
         if (outbound(index)) throw new ReadOverflowException(size, index);
+        return array.get(index);
+    }
+
+    Type
+    read(int index) {
         int offset = offset(index);
         return deserialize(offset);
     }
 
-    @SuppressWarnings("unchecked")
-    public synchronized Type[]
-    read(Class<Type> type) {
-        Type[] array = (Type[]) Array.newInstance(type, size);
-        for (int index = 0; index < size; index++) {
-            array[index] = deserialize(offset(index));
-        }
+    public synchronized Cache<Type>
+    read() {
         return array;
     }
 
@@ -59,6 +71,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         if (outbound(index)) throw new WriteOverflowException(size, index);
         int offset = offset(index);
         serialize(value, offset);
+        array.invalidate(index);
     }
 
     public synchronized void
@@ -68,6 +81,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         System.arraycopy(configuration.page, offset, configuration.page, offset(index + 1), (size - index) * serializer.sizeOf());
         serialize(value, offset);
         serializeSize(++size);
+        array.adjust(index, +1);
     }
 
     @Override
@@ -76,6 +90,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         if (spills()) throw new WriteOverflowException(free());
         int offset = offset(size);
         serialize(value, offset);
+        array.invalidate(size);
         return serializeSize(++size);
     }
 
@@ -106,6 +121,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     remove(int index) {
         if (outbound(index)) throw new WriteOverflowException(size, index);
         System.arraycopy(configuration.page, offset(index + 1), configuration.page, offset(index), (size - index - 1) * serializer.sizeOf());
+        array.adjust(index, -1);
         return serializeSize(--size);
     }
 
@@ -221,6 +237,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int
     serializeSize(int value) {
+        array.length(value);
         IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
         return value;
     }

@@ -4,6 +4,7 @@ import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.AddressTools;
+import com.yokalona.file.Cache;
 
 import java.lang.reflect.Array;
 
@@ -28,8 +29,7 @@ public class DataSpace<Type> {
 
     public Type
     get(int index) {
-        Integer address = this.index.get(index);
-        return serializer.deserialize(configuration.page(), address);
+        return read(index);
     }
 
     public int
@@ -68,6 +68,11 @@ public class DataSpace<Type> {
         return array;
     }
 
+    public Cache<Integer>
+    addresses() {
+        return this.index.read();
+    }
+
     public void
     clear() {
         this.index.clear();
@@ -77,4 +82,16 @@ public class DataSpace<Type> {
     occupied() {
         return this.index.occupied();
     }
+
+    public void
+    flush() {
+        this.index.flush();
+    }
+
+    Type
+    read(int index) {
+        Integer address = this.index.get(index);
+        return serializer.deserialize(configuration.page(), address);
+    }
+
 }
