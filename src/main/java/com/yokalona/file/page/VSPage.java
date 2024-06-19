@@ -24,9 +24,9 @@ public class VSPage<Type> implements Page<Type> {
     public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.configuration = configuration;
-        this.dataSpace = //new CachedDataSpace<>(
+        this.dataSpace = new CachedDataSpace<>(
                 new IndexedDataSpace<>(serializer,
-                        new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace));//);
+                        new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace)));
         this.availabilitySpace = new MergeAvailabilitySpace(new MergeAvailabilitySpace.Configuration(
                 // TODO: fix configuration.page.length as it might be wrong
                 configuration.page, configuration.offset + HEADER, configuration.availabilitySpace, configuration.page.length));
@@ -82,7 +82,12 @@ public class VSPage<Type> implements Page<Type> {
         if (availabilitySpace.available() > size + dataSpace.pointerSize() && !availabilitySpace.fits(size)) availabilitySpace.defragmentation();
         else if (availabilitySpace.available() < size + dataSpace.pointerSize()) throw new NoFreeSpaceLeftException();
 
-        availabilitySpace.reduce(dataSpace.pointerSize());
+        if (!availabilitySpace.reduce(dataSpace.pointerSize())) {
+            defragmentation((Class<Type>) value.getClass());
+            if (!availabilitySpace.reduce(dataSpace.pointerSize()))
+                throw new NoFreeSpaceLeftException();
+        }
+
         Array<Integer> read = dataSpace.addresses();
         // TODO: HOAR ALG or use in memory Min Stack
         int min = Integer.MAX_VALUE;
@@ -145,45 +150,16 @@ public class VSPage<Type> implements Page<Type> {
 
     public boolean
     fits(int size) {
-        if (availabilitySpace.available() < size + dataSpace.pointerSize()) return false;
-        availabilitySpace.reduce(dataSpace.pointerSize());
-        boolean fits = availabilitySpace.fits(size);
-        availabilitySpace.reduce(-dataSpace.pointerSize());
-        return fits;
+        return availabilitySpace.fits(size + dataSpace.pointerSize());
     }
 
     public void
     defragmentation(Class<Type> type) {
         Array<Type> array = dataSpace.read(type);
         dataSpace.clear();
-
-        int beginning = availabilitySpace.beginning();
-        int memory = availabilitySpace.available();
-        ArrayPage<Pointer> pointers = availabilitySpace.pointers;
-        Pointer[] pointers1 = new Pointer[pointers.size()];
-        for (int i = 0; i < pointers1.length; i++) {pointers1[i] = pointers.get(i);}
-
         int max = availabilitySpace.maxAddress();
         for (Type data : array) dataSpace.insert(max -= serializer.sizeOf(data), data);
         availabilitySpace.freeImmediately(max);
-        System.out.printf("""
-                        Before defragmentation:
-                            memory:                 %6d
-                            start:                  %6d
-                            end:                    %6d
-                        Pointers:%n""", memory, beginning, availabilitySpace.maxAddress());
-        for (Pointer p : pointers1) {
-            System.out.println("\t" + p);
-        }
-        System.out.printf("""
-                        After defragmentation:
-                            memory:                 %6d
-                            start:                  %6d
-                            end:                    %6d
-                        Pointers:%n""", availabilitySpace.available(), availabilitySpace.beginning(), availabilitySpace.maxAddress());
-        for (Pointer p : pointers) {
-            System.out.println("\t" + p);
-        }
     }
 
     @Override

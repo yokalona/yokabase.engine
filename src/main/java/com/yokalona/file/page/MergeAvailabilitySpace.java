@@ -3,7 +3,6 @@ package com.yokalona.file.page;
 import com.yokalona.annotations.Approximate;
 import com.yokalona.annotations.SpawnSubprocess;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
-import com.yokalona.file.AddressTools;
 import com.yokalona.file.Array;
 import com.yokalona.file.Pointer;
 import com.yokalona.file.exceptions.NoFreeSpaceLeftException;
@@ -64,12 +63,13 @@ public class MergeAvailabilitySpace {
         return available() >= size;
     }
 
-    public void
+    public boolean
     reduce(int by) {
         if (this.pointers.size() == 0) throw new NoFreeSpaceLeftException();
         this.start += by;
         this.free -= by;
         write(start, pointers.configuration().page(), pointers.configuration().offset() - Integer.BYTES);
+        return true;
     }
 
     public int
@@ -165,7 +165,10 @@ public class MergeAvailabilitySpace {
         this.free = 0;
         for (Pointer p : merged) {
             this.pointers.append(p);
-            this.free += p.length();
+            if (p.start() < start) {
+                int delta = p.end() - start;
+                if (delta > 0) this.free += delta;
+            } else this.free += p.length();
         }
     }
 
