@@ -6,7 +6,6 @@ import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.array.serializers.primitives.LongSerializer;
 import com.yokalona.file.Array;
-import com.yokalona.file.CachedArrayProvider;
 import com.yokalona.file.exceptions.CRCMismatchException;
 import com.yokalona.file.exceptions.NegativeOffsetException;
 import com.yokalona.file.exceptions.NegativePageSizeException;
@@ -20,11 +19,9 @@ import java.util.Iterator;
 
 import static com.yokalona.file.headers.CRC64Jones.calculate;
 
-public class ASPage<Type> implements Page<Type>, Iterable<Type> {
+public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
 
     public static final int MAX_AS_PAGE_SIZE = 4 * 1024 * 1024;
-
-    public static final int MAX_CACHE_SIZE = MAX_AS_PAGE_SIZE;
 
     private static final long CRC = 5928236041702360388L;
     private static final long START = 4707194276831113265L;
@@ -33,7 +30,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     private int size;
     private final Configuration configuration;
     private final FixedSizeSerializer<Type> serializer;
-    private final CachedArrayProvider<Type> array;
 
     public ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration) {
         this(0, serializer, configuration);
@@ -42,7 +38,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.configuration = configuration;
-        this.array = new CachedArrayProvider<>(Math.min(MAX_CACHE_SIZE, free()) / serializer.sizeOf(), this::read);
         int offset = write(START, configuration, configuration.offset);
         offset += write(configuration.length, configuration, configuration.offset + offset);
         write(CRC, configuration, configuration.offset + offset);
@@ -53,28 +48,28 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     public synchronized Type
     get(int index) {
         if (outbound(index)) throw new ReadOverflowException(size, index);
-        return array.get(index);
-    }
-
-    Type
-    read(int index) {
         int offset = offset(index);
         return deserialize(offset);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
     public synchronized Array<Type>
-    read() {
-        return array;
+    read(Class<Type> type) {
+        Type[] array = (Type[]) java.lang.reflect.Array.newInstance(type, size);
+        for (int i = 0; i < size; ++i) array[i] = this.get(i);
+        return new Array.Indexed<>(array);
     }
 
+    @Override
     public synchronized void
     set(int index, Type value) {
         if (outbound(index)) throw new WriteOverflowException(size, index);
         int offset = offset(index);
         serialize(value, offset);
-        array.invalidate(index);
     }
 
+    @Override
     public synchronized void
     insert(int index, Type value) {
         if (0 > index || index > size || spills()) throw new WriteOverflowException(size, index);
@@ -82,7 +77,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         System.arraycopy(configuration.page, offset, configuration.page, offset(index + 1), (size - index) * serializer.sizeOf());
         serialize(value, offset);
         serializeSize(++size);
-        array.invalidate();
     }
 
     @Override
@@ -91,10 +85,10 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         if (spills()) throw new WriteOverflowException(free());
         int offset = offset(size);
         serialize(value, offset);
-        array.invalidate(size);
         return serializeSize(++size);
     }
 
+    @Override
     public synchronized void
     swap(int left, int right) {
         if (outbound(left)) throw new WriteOverflowException(size, left);
@@ -104,6 +98,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         set(right, temp);
     }
 
+    @Override
     public synchronized int
     find(Type value, Comparator<Type> comparator) {
         int left = 0, right = size - 1;
@@ -122,7 +117,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     remove(int index) {
         if (outbound(index)) throw new WriteOverflowException(size, index);
         System.arraycopy(configuration.page, offset(index + 1), configuration.page, offset(index), (size - index - 1) * serializer.sizeOf());
-        array.invalidate();
         return serializeSize(--size);
     }
 
@@ -131,6 +125,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         serializeSize(this.size = 0);
     }
 
+    @Override
     public synchronized Type
     first() {
         if (outbound(0)) throw new ReadOverflowException(size, 0);
@@ -138,6 +133,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         return deserialize(offset);
     }
 
+    @Override
     public synchronized Type
     last() {
         if (outbound(size - 1)) throw new ReadOverflowException(size, size - 1);
@@ -157,6 +153,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
         return configuration.length - occupied();
     }
 
+    @Override
     public int
     length() {
         return configuration.length;
@@ -166,11 +163,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
     public int
     occupied() {
         return (offset(0) - configuration.offset) + size * serializer.sizeOf();
-    }
-
-    public int
-    offset() {
-        return configuration.offset;
     }
 
     private Type
@@ -188,7 +180,7 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
             @Override
             public boolean hasNext() {
                 switched = true;
-                if (current + 1 < size) {
+                if (current + 1 < size()) {
                     current++;
                     return true;
                 } else {
@@ -248,7 +240,6 @@ public class ASPage<Type> implements Page<Type>, Iterable<Type> {
 
     private int
     serializeSize(int value) {
-        array.length(value);
         IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
         return value;
     }

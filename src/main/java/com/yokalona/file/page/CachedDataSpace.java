@@ -5,9 +5,9 @@ import com.yokalona.file.CachedArrayProvider;
 
 public class CachedDataSpace<Type> implements DataSpace<Type> {
 
-    public static int MAX_CACHE_SIZE = 2;
+    public static int MAX_CACHE_SIZE = 1024;
 
-    private final DataSpace<Type> dataSpace;
+    public final DataSpace<Type> dataSpace;
     private final CachedArrayProvider<Type> array;
 
     public CachedDataSpace(DataSpace<Type> dataSpace) {
@@ -69,7 +69,7 @@ public class CachedDataSpace<Type> implements DataSpace<Type> {
     clear() {
         dataSpace.clear();
         array.length(0);
-        for (int i = 0; i < 10000; i ++) array.invalidate(i);
+        array.invalidate();
     }
 
     @Override

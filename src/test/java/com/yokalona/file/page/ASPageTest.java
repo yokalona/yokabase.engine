@@ -1,17 +1,20 @@
 package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
 import com.yokalona.file.exceptions.*;
 import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
 
-import java.util.Iterator;
+import java.util.*;
 
 import static com.yokalona.file.page.ASPage.MAX_AS_PAGE_SIZE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ASPageTest {
+
+    public static final Random RANDOM = new Random();
 
     @Test
     void testCreate() {
@@ -47,7 +50,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         assertThrows(WriteOverflowException.class, () -> page.append(1200));
     }
@@ -57,7 +60,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         while (index > 0) {
             assertEquals(--index, page.get(index));
@@ -69,7 +72,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         assertThrows(ReadOverflowException.class, () -> page.get(-1));
         assertThrows(ReadOverflowException.class, () -> page.get(8012));
@@ -109,7 +112,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         page.set(44, 8890);
         while (index-- > 0) {
@@ -134,7 +137,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         page.swap(44, 45);
         while (index-- > 0) {
@@ -149,7 +152,7 @@ class ASPageTest {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
-            page.append(index ++);
+            page.append(index++);
         }
         assertThrows(WriteOverflowException.class, () -> page.swap(-1, 45));
         assertThrows(WriteOverflowException.class, () -> page.swap(44, -1));
@@ -169,7 +172,7 @@ class ASPageTest {
         assertEquals(4085, page.size());
         page.remove(44);
         assertEquals(4084, page.size());
-        index --;
+        index--;
         while (index-- > 0) {
             if (index < 44) assertEquals(index, page.get(index));
             else assertEquals(index + 1, page.get(index));
@@ -239,7 +242,7 @@ class ASPageTest {
 
     @Test
     void testFirstThrows() {
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
+        ArrayPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         assertThrows(ReadOverflowException.class, page::first);
     }
 
@@ -255,7 +258,7 @@ class ASPageTest {
 
     @Test
     void testLastThrows() {
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
+        ArrayPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         assertThrows(ReadOverflowException.class, page::last);
     }
 
@@ -266,7 +269,7 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        Array<Integer> read = page.read();
+        Array<Integer> read = page.read(Integer.class);
         for (int i = 0; i < read.length(); i++) {
             assertEquals(i, read.get(i));
         }
@@ -279,8 +282,8 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        Array<Integer> read = page.read();
-        int [] indexes = new int [read.length()];
+        Array<Integer> read = page.read(Integer.class);
+        int[] indexes = new int[read.length()];
         TestHelper.shuffle(indexes);
         for (int ind : indexes) {
             Integer datum = read.get(ind);
@@ -291,35 +294,23 @@ class ASPageTest {
     }
 
     @Test
-    void testOffset() {
-        ASPage.Configuration configuration = new ASPage.Configuration(8 * 1024);
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), configuration);
-        assertEquals(configuration.offset(), page.offset());
-    }
-
-    @Test
-    void testLength() {
-        ASPage.Configuration configuration = new ASPage.Configuration(8 * 1024);
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), configuration);
-        assertEquals(configuration.length(), page.length());
-    }
-
-    @Test
     void testIterator() {
         ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
         }
-        Array<Integer> read = page.read();
+        Array<Integer> read = page.read(Integer.class);
         Integer[] array = new Integer[read.length()];
-        for (int ind = 0; ind < array.length; ind++) {array[ind] = read.get(ind);}
+        for (int ind = 0; ind < array.length; ind++) {
+            array[ind] = read.get(ind);
+        }
         Iterator<Integer> iterator = page.iterator();
         index = 0;
         while (iterator.hasNext()) {
             Integer value = iterator.next();
             iterator.remove();
-            assertEquals(array[index ++], value);
+            assertEquals(array[index++], value);
         }
     }
 
@@ -336,6 +327,52 @@ class ASPageTest {
         iterator.remove();
         assertEquals(--index, page.size());
         assertThrows(IllegalStateException.class, iterator::remove);
+    }
+
+    @Test
+    void testRabbitAndTheHat() {
+        for (int iteration = 0; iteration < 1000; iteration++) {
+            ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new IntegerSerializer(), new ASPage.Configuration(8 * 1024)));
+            int index = 0;
+            List<Integer> integers = new ArrayList<>();
+            page.append(index);
+            integers.add(index);
+            for (int subiteration = 0; subiteration < 100; subiteration++) {
+                while (page.free() >= page.serializer().sizeOf()) {
+                    int idx = RANDOM.nextInt(page.size());
+                    int action = RANDOM.nextInt(4);
+                    switch (action) {
+                        case 0: {
+                            page.append(index);
+                            integers.add(index++);
+                        } break;
+                        case 1: {
+                            page.insert(idx, index);
+                            integers.add(idx, index++);
+                        } break;
+                        case 2: {
+                            page.set(idx, index);
+                            integers.set(idx, index++);
+                        }
+                        case 3: {
+                            int idx2 = RANDOM.nextInt(page.size());
+                            page.swap(idx, idx2);
+                            Collections.swap(integers, idx, idx2);
+                        } break;
+                    }
+                }
+                assertEquals(integers.size(), page.size());
+                for (int i = 0; i < integers.size(); i += 2) {
+                    int idx = RANDOM.nextInt(page.size());
+                    page.remove(idx);
+                    integers.remove(idx);
+                }
+            }
+            assertEquals(integers.size(), page.size());
+            for (int i = 0; i < integers.size(); i++) {
+                assertEquals(integers.get(i), page.get(i));
+            }
+        }
     }
 
 }

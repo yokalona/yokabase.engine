@@ -33,7 +33,7 @@ public interface Page<Type> {
 
     ASPage.Configuration configuration();
 
-    Array<Type> read();
+    Array<Type> read(Class<Type> type);
 
     void clear();
 }

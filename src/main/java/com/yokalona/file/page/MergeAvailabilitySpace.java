@@ -19,13 +19,13 @@ public class MergeAvailabilitySpace {
     private int free;
     private int start;
     private final int end;
-    private final ASPage<Pointer> pointers;
+    public final ArrayPage<Pointer> pointers;
 
     public MergeAvailabilitySpace(Configuration configuration) {
-        this.start = configuration.offset + configuration.dataSpace + AddressTools.significantBytes(configuration.page.length) + 8;
+        this.start = configuration.offset + configuration.dataSpace + 22;
         this.end = configuration.totalSpace;
-        this.pointers = new ASPage<>(PointerSerializer.forSpace(configuration.totalSpace),
-                new ASPage.Configuration(configuration.page, configuration.offset + Integer.BYTES, configuration.dataSpace));
+        this.pointers = new CachedArrayPage<>(new ASPage<>(PointerSerializer.forSpace(configuration.totalSpace),
+                new ASPage.Configuration(configuration.page, configuration.offset + Integer.BYTES, configuration.dataSpace)));
         this.pointers.append(new Pointer(this.start, this.end));
         this.free = this.end - this.start;
         write(start, configuration.page, configuration.offset);
@@ -34,7 +34,7 @@ public class MergeAvailabilitySpace {
     private MergeAvailabilitySpace(int start, int end, ASPage<Pointer> pointers) {
         this.end = end;
         this.start = start;
-        Array<Pointer> read = pointers.read();
+        Array<Pointer> read = pointers.read(Pointer.class);
         for (Pointer pointer : read) {
             this.free += pointer.length();
         }
@@ -80,7 +80,8 @@ public class MergeAvailabilitySpace {
         Pointer pointer = new Pointer(address, address + size);
         int index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
         if (index < 0) {
-            if (this.pointers.spills()) {
+            // TODO: SHOULD BE CORRECT SIZE< BEATCH.
+            if (this.pointers.free() < this.pointers.serializer().sizeOf()) {
                 defragmentation();
                 index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
                 if (index < 0) this.pointers.insert(-(index + 1), pointer);
@@ -88,6 +89,11 @@ public class MergeAvailabilitySpace {
             } else this.pointers.insert(-(index + 1), pointer);
         } else this.pointers.set(index, pointer);
         this.free += size;
+
+        for (int i = address; i < address + size; i++) {
+            pointers.configuration().page()[i] = (byte) 'D';
+        }
+
         return this.pointers.size();
     }
 
@@ -103,7 +109,7 @@ public class MergeAvailabilitySpace {
     freeImmediately(int size, int address) {
         if (address + size > end) throw new WriteOverflowException("Freeing more memory, that is accessible");
         Pointer pointer = new Pointer(address, address + size);
-        Array<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read(Pointer.class);
         List<Pointer> merged = new ArrayList<>();
         int index = 0;
         while (index < pointers.length() && pointer.start() > pointers.get(index).end())
@@ -116,7 +122,7 @@ public class MergeAvailabilitySpace {
         this.pointers.clear();
         this.free = 0;
         for (Pointer p : merged) {
-            if (this.pointers.spills()) defragmentation();
+            if (this.pointers.free() < this.pointers.serializer().sizeOf()) defragmentation();
             this.pointers.append(p);
             this.free += p.length();
         }
@@ -142,7 +148,7 @@ public class MergeAvailabilitySpace {
     @SpawnSubprocess
     public void
     defragmentation() {
-        Array<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read(Pointer.class);
         if (pointers.length() == 0) throw new NoFreeSpaceLeftException();
         LinkedList<Pointer> merged = new LinkedList<>();
         merged.add(pointers.get(0));
@@ -171,7 +177,7 @@ public class MergeAvailabilitySpace {
     private int
     allocate(int size) {
         int selected = -1, delta = Integer.MAX_VALUE;
-        Array<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read(Pointer.class);
         for (int index = 0; index < pointers.length(); index++) {
             if (pointers.get(index).end() - size < start) continue;
             if (pointers.get(index).length() >= size && delta > pointers.get(index).length() - size) {

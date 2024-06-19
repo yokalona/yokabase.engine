@@ -4,23 +4,24 @@ import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
-import com.yokalona.file.AddressTools;
 import com.yokalona.file.Array;
+
+import static com.yokalona.file.AddressTools.significantBytes;
 
 public class IndexedDataSpace<Type> implements DataSpace<Type> {
 
-    private final ASPage<Integer> index;
+    public final Page<Integer> index;
     private final Serializer<Type> serializer;
 
     public IndexedDataSpace(Serializer<Type> serializer, ASPage.Configuration configuration) {
-        this.serializer = serializer;
-        int significantBytes = AddressTools.significantBytes(configuration.offset() + configuration.length());
-        this.index = new ASPage<>(new CompactIntegerSerializer(significantBytes), configuration);
+        this(serializer, new ASPage<>(
+                new CompactIntegerSerializer(significantBytes(configuration.offset() + configuration.length())),
+                configuration));
     }
 
     IndexedDataSpace(Serializer<Type> serializer, ASPage<Integer> index) {
+        this.index = new CachedPage<>(index);
         this.serializer = serializer;
-        this.index = index;
     }
 
     @Override
@@ -81,7 +82,7 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     @Override
     public Array<Integer>
     addresses() {
-        return this.index.read();
+        return this.index.read(Integer.class);
     }
 
     @Override
@@ -105,7 +106,7 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     public static <Type> IndexedDataSpace<Type>
     read(Serializer<Type> serializer, byte[] page, int offset) {
         int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
-        int significantBytes = AddressTools.significantBytes(offset + length);
+        int significantBytes = significantBytes(offset + length);
         return new IndexedDataSpace<>(serializer, ASPage.read(new CompactIntegerSerializer(significantBytes), page, offset));
     }
 

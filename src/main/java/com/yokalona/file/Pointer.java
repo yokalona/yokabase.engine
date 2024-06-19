@@ -14,4 +14,9 @@ public record Pointer(int start, int end) {
     length() {
         return end - start;
     }
+
+    @Override
+    public String toString() {
+        return "[%d, %d] %d".formatted(start, end, length());
+    }
 }

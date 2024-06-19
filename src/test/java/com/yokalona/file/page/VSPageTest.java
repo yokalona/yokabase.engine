@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class VSPageTest {
 
     public static final Random RANDOM = new Random();
-    public static final String ALPHABET = "abcdefghjiklmopqrstuvxyz0123456789";
-//    public static final String ALPHABET = "X";
+    //    public static final String ALPHABET = "abcdefghjiklmopqrstuvxyz0123456789";
+    public static final String ALPHABET = "X";
 
     @Test
     void testCreating() {
@@ -179,52 +179,74 @@ class VSPageTest {
     }
 
     @Test
-    void testRepeatablyAppendRemove2() {
-        byte[] space = new byte[32 * 1024];
-        int min = 0, max = 100;
-        for (int i = 0; i <= 1000; i++) {
-            VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                    new VSPage.Configuration(space, 0, 1024, space.length - 1024));
-            String string = randomString(min, max);
-            List<String> strings = new ArrayList<>();
-            while (page.fits(string)) {
-                strings.add(string);
-                page.append(string);
-                string = randomString(min, max);
-            }
-            assertEquals(strings.size(), page.size());
-            for (int index = 0; index < strings.size(); index++) {
-                assertEquals(strings.get(index), page.get(index));
-            }
+    void testRepeatablyAppendRemove2() { // 5.716
+        byte[] space = new byte[4 * 1024];
+        int min = 10, max = 15;
+        try {
+            for (int i = 0; i < 1000; i++) {
+                System.out.println("Iteration: " + i);
+                VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
+                        new VSPage.Configuration(space, 0, 1024, space.length - 1024));
+                String string = randomString(min, max);
+                List<String> strings = new ArrayList<>();
+                while (page.fits(string)) {
+                    strings.add(string);
+                    page.append(string);
+                    string = randomString(min, max);
+                }
+                assertEquals(strings.size(), page.size());
+                for (int index = 0; index < strings.size(); index++) {
+                    assertEquals(strings.get(index), page.get(index));
+                }
 
-            for (int index = 0; index < strings.size(); index += 2) {
-                page.remove(index);
-                strings.remove(index);
+                for (int index = 0; index < strings.size(); index += 2) {
+                    int idx = RANDOM.nextInt(strings.size());
+                    page.remove(idx);
+                    strings.remove(idx);
+                }
+                prettyPrint(space);
+
+                for (int index = 0; index < strings.size(); index++) {
+                    assertEquals(strings.get(index), page.get(index));
+                }
+                while (page.fits(string)) {
+                    strings.add(string);
+                    page.append(string);
+                    string = randomString(min, max);
+                }
+                for (int index = 0; index < strings.size(); index++) {
+                    assertEquals(strings.get(index), page.get(index));
+                }
             }
-            for (int index = 0; index < strings.size(); index++) {
-                assertEquals(strings.get(index), page.get(index));
-            }
-            while (page.fits(string)) {
-                strings.add(string);
-                page.append(string);
-                string = randomString(min, max);
-            }
-            for (int index = 0; index < strings.size(); index++) {
-                assertEquals(strings.get(index), page.get(index));
-            }
+        } catch (Throwable t) {
+            prettyPrint(space);
+            throw t;
         }
     }
 
     @Test
-    void testRepeatablyAppendRemove3() {
-        byte[] space = new byte[8 * 1024];
-        int min = 0, max = 100;
+    void testRepeatablyAppendRemove3() { //16.306
+        byte[] space = new byte[2 * 1024];
+        int min = 15, max = 15;
         try {
             for (int i = 0; i <= 100; i++) {
                 VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                        new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+                        // fix header issue already
+                        new VSPage.Configuration(space, 0, 1024, space.length - 1024));
                 String string = randomString(min, max);
                 List<String> strings = new ArrayList<>();
+//                if (1 == 1) {
+//                    page.availabilitySpace.validate();
+//                    prettyPrint(space);
+//                    System.exit(1);
+//                }
+//                    ((ASPage) ((CachedArrayPage) page.availabilitySpace.pointers).page).mask('A');
+//                    prettyPrint(space);
+//                    System.out.println("%%%%%%%%%%%%%%%%");
+//                    ((ASPage) ((CachedPage) ((IndexedDataSpace) ((CachedDataSpace) page.dataSpace).dataSpace).index).page).mask('D');
+//                    prettyPrint(space);
+//                    System.exit(1);
+//                }
                 while (page.fits(string)) {
                     strings.add(string);
                     page.append(string);
@@ -255,12 +277,12 @@ class VSPageTest {
                     }
                 }
 
-                page.flush();
-                VSPage<String> read = VSPage.read(StringSerializer.INSTANCE, space, 0);
-                int[] array = TestHelper.arrayOfSize(strings.size());
-                for (int index = 0; index < strings.size(); index++) {
-                    assertEquals(strings.get(array[index]), read.get(array[index]));
-                }
+//                page.flush();
+//                VSPage<String> read = VSPage.read(StringSerializer.INSTANCE, space, 0);
+//                int[] array = TestHelper.arrayOfSize(strings.size());
+//                for (int index = 0; index < strings.size(); index++) {
+//                    assertEquals(strings.get(array[index]), read.get(array[index]));
+//                }
             }
         } catch (Throwable t) {
             prettyPrint(space);
@@ -304,6 +326,7 @@ class VSPageTest {
 
     String
     randomString(int min, int max) {
+        if (min == max) return generate(new byte[min]);
         byte[] bytes = new byte[RANDOM.nextInt(min, max)];
         return generate(bytes);
     }

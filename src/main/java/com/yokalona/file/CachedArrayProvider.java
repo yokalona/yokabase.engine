@@ -25,13 +25,19 @@ public class CachedArrayProvider<Type> implements Array<Type>, Invalidatable {
     @SuppressWarnings("unchecked")
     public Type
     get(int index) {
-        int idx = index % indices.length;
-        int prior = indices[idx];
-        if (prior != index) {
-            cache[idx] = getter.apply(index);
-            indices[idx] = index;
-        }
-        return (Type) cache[idx];
+        return read(index);
+//        int idx = index % indices.length;
+//        int prior = indices[idx];
+//        if (prior != index) {
+//            cache[idx] = read(index);
+//            indices[idx] = index;
+//        }
+//        return (Type) cache[idx];
+    }
+
+    public Type
+    read(int index) {
+        return getter.apply(index);
     }
 
     public void
@@ -65,12 +71,14 @@ public class CachedArrayProvider<Type> implements Array<Type>, Invalidatable {
             int current = -1;
 
             @Override
-            public boolean hasNext() {
+            public boolean
+            hasNext() {
                 return ++current < length;
             }
 
             @Override
-            public Type next() {
+            public Type
+            next() {
                 return get(current);
             }
         };

@@ -3,6 +3,7 @@ package com.yokalona.file.page;
 import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
+import com.yokalona.file.Pointer;
 import com.yokalona.file.exceptions.*;
 import com.yokalona.file.headers.CRC64Jones;
 import com.yokalona.array.serializers.VariableSizeSerializer;
@@ -16,16 +17,16 @@ public class VSPage<Type> implements Page<Type> {
     private static final int HEADER = Long.BYTES * 2 + Integer.BYTES * 2;
 
     private final Configuration configuration;
-    private final DataSpace<Type> dataSpace;
+    public final DataSpace<Type> dataSpace;
     private final VariableSizeSerializer<Type> serializer;
-    private final MergeAvailabilitySpace availabilitySpace;
+    public final MergeAvailabilitySpace availabilitySpace;
 
     public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.configuration = configuration;
-        this.dataSpace = new CachedDataSpace<>(
+        this.dataSpace = //new CachedDataSpace<>(
                 new IndexedDataSpace<>(serializer,
-                        new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace)));
+                        new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace));//);
         this.availabilitySpace = new MergeAvailabilitySpace(new MergeAvailabilitySpace.Configuration(
                 // TODO: fix configuration.page.length as it might be wrong
                 configuration.page, configuration.offset + HEADER, configuration.availabilitySpace, configuration.page.length));
@@ -131,12 +132,6 @@ public class VSPage<Type> implements Page<Type> {
     }
 
     @Override
-    public Array<Type>
-    read() {
-        return null;
-    }
-
-    @Override
     public void
     clear() {
 
@@ -161,9 +156,34 @@ public class VSPage<Type> implements Page<Type> {
     defragmentation(Class<Type> type) {
         Array<Type> array = dataSpace.read(type);
         dataSpace.clear();
+
+        int beginning = availabilitySpace.beginning();
+        int memory = availabilitySpace.available();
+        ArrayPage<Pointer> pointers = availabilitySpace.pointers;
+        Pointer[] pointers1 = new Pointer[pointers.size()];
+        for (int i = 0; i < pointers1.length; i++) {pointers1[i] = pointers.get(i);}
+
         int max = availabilitySpace.maxAddress();
-        for (Type data : array) dataSpace.insert(max = max - serializer.sizeOf(data), data);
+        for (Type data : array) dataSpace.insert(max -= serializer.sizeOf(data), data);
         availabilitySpace.freeImmediately(max);
+        System.out.printf("""
+                        Before defragmentation:
+                            memory:                 %6d
+                            start:                  %6d
+                            end:                    %6d
+                        Pointers:%n""", memory, beginning, availabilitySpace.maxAddress());
+        for (Pointer p : pointers1) {
+            System.out.println("\t" + p);
+        }
+        System.out.printf("""
+                        After defragmentation:
+                            memory:                 %6d
+                            start:                  %6d
+                            end:                    %6d
+                        Pointers:%n""", availabilitySpace.available(), availabilitySpace.beginning(), availabilitySpace.maxAddress());
+        for (Pointer p : pointers) {
+            System.out.println("\t" + p);
+        }
     }
 
     @Override
@@ -202,7 +222,7 @@ public class VSPage<Type> implements Page<Type> {
 
         public Configuration {
             if (offset < 0) throw new NegativeOffsetException();
-            if (availabilitySpace < 128) throw new PageIsTooSmallException();
+            if (availabilitySpace < 32) throw new PageIsTooSmallException();
             if (dataSpace < 1024) throw new PageIsTooSmallException();
             int size = offset + availabilitySpace + dataSpace;
             if (page.length < size || size > MAX_VS_PAGE_SIZE) throw new PageIsTooLargeException(size);
