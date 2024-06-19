@@ -4,9 +4,10 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 public class InputReader {
+    private int pointer = 0;
+    private long address = 0;
     private final byte[] buffer;
     private final RandomAccessFile raf;
-    private int pointer = 0;
 
     public InputReader(RandomAccessFile raf, byte[] buffer) {
         this.raf = raf;
@@ -44,6 +45,14 @@ public class InputReader {
     public void
     invalidate() {
         pointer = buffer.length;
+    }
+
+    public void
+    seek(long address) throws IOException {
+        raf.seek(address);
+        if (address < this.address + pointer) pointer = (int) (this.address - address);
+        else pointer = buffer.length;
+        this.address = address;
     }
 
 }

@@ -5,97 +5,63 @@ import com.yokalona.array.io.CachedFile;
 import com.yokalona.array.io.InputReader;
 import com.yokalona.array.io.OutputWriter;
 import com.yokalona.array.serializers.VariableSizeSerializer;
-import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
-import com.yokalona.array.serializers.primitives.CompactLongSerializer;
+import com.yokalona.array.serializers.primitives.LongSerializer;
 import com.yokalona.file.page.ASPage;
-import com.yokalona.file.page.Page;
 import com.yokalona.file.page.VSPage;
 
 import java.io.IOException;
 
 public class VSFile<Type> implements Index<Type> {
 
-    int[] content;
-    ASPage<Long> pages;
-    VariableSizeSerializer<Type> serializer;
-    byte[] sharedBuffer;
-    byte[] index;
-    final CachedFile storage;
+    public static int VS_PAGE_SIZE = 32 * 1024;
+    public static float VS_PAGE_DISTRIBUTION = .1F;
+    public static int AS_PAGE_SIZE = 1024;
 
-    VSFile(VariableSizeSerializer<Type> serializer, VSFileConfiguration configuration) {
+    private ASPage<Long> index;
+    private final CachedFile cachedFile;
+    private final VariableSizeSerializer<Type> serializer;
+    private final byte[] vsBuffer = new byte[VS_PAGE_SIZE];
+
+    public VSFile(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
-        this.storage = new CachedFile(configuration.file());
-        this.sharedBuffer = new byte[configuration.buffer.pages * configuration.page.sizeKb];
-        this.index = new byte[configuration.index.sizeKb * 1024];
-//        this.pages = ASPage.create(configuration.index.sizeKb * 1024, 0,
-//                new CompactLongSerializer(AddressTools.significantBytes(configuration.index.sizeKb
-//                        * configuration.index.sizeKb * 1024 * 1024L)), index);
-        flush();
+        this.cachedFile = new CachedFile(configuration.file);
+        this.index = new ASPage<>(LongSerializer.INSTANCE, new ASPage.Configuration(AS_PAGE_SIZE));
     }
 
-    static record VSFileConfiguration(File file, IndexConfiguration index, PageConfiguration page, BufferConfiguration buffer) {
-        record IndexConfiguration(int sizeKb) {}
-        record PageConfiguration(int sizeKb, float spaceDistribution) { }
-        record BufferConfiguration(int pages) { }
-    }
-
-    void
+    public VSPage<Type>
     create() {
-        pages.append(4096L);
+        return new VSPage<>(serializer, new VSPage.Configuration(vsBuffer, 0, VS_PAGE_DISTRIBUTION));
     }
 
-    PersistentPage
-    page(int index) {
-        return new PersistentPage(index);
-    }
-
-    void
-    flush() {
-        try (storage) {
-            OutputWriter out = new OutputWriter(storage.get(), index);
-            storage.peek().seek(0);
-            out.flushAll();
+    public VSPage<Type>
+    get(int page) {
+        Long address = index.get(page);
+        try (cachedFile) {
+            InputReader reader = cachedFile.reader(vsBuffer);
+            reader.seek(address);
+            reader.refill();
+            return VSPage.read(serializer, vsBuffer, 0);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    class PersistentPage implements AutoCloseable {
-
-        private final int index;
-        private final Page<Type> page;
-
-        public PersistentPage(int index) {
-            this.index = index;
-            Long address = pages.get(index);
-            try (storage) {
-                InputReader in = new InputReader(storage.get(), sharedBuffer);
-                storage.peek().seek(address);
-                in.refill();
-                this.page = null;//new VSPage<>(serializer, sharedBuffer, 0, 4096, .1F);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public Page<Type>
-        page() {
-            return page;
-        }
-
-        @Override
-        public void
-        close() {
-            Long address = pages.get(index);
-            try (storage) {
-                // TODO: switch
-                OutputWriter out = new OutputWriter(storage.get(), sharedBuffer);
-                storage.peek().seek(address);
-                out.flushAll();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+    public void
+    append(Type value) {
+        VSPage<Type> page;
+        if (index.size() == 0) page = create();
+        else page = get(index.size() - 1);
+        page.append(value);
+        page.flush();
+        Long address = index.get(index.size() - 1);
+        try (cachedFile) {
+            OutputWriter writer = cachedFile.writer(vsBuffer);
+            writer.seek(address);
+            writer.flushAll();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
+    public record Configuration(File file) {}
 }

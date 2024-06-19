@@ -51,4 +51,10 @@ public class OutputWriter implements AutoCloseable {
     close() throws Exception {
         flush();
     }
+
+    public void
+    seek(Long address) throws IOException {
+        flush();
+        raf.seek(address);
+    }
 }

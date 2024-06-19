@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.function.Function;
 
-public class CachedArrayProvider<Type> implements Cache<Type>, Invalidatable {
+public class CachedArrayProvider<Type> implements Array<Type>, Invalidatable {
 
     private int length;
     private final int[] indices;
@@ -18,7 +18,7 @@ public class CachedArrayProvider<Type> implements Cache<Type>, Invalidatable {
         this.getter = getter;
         this.indices = new int[size];
         this.cache = new Object[size];
-        Arrays.fill(this.indices, -1);
+        invalidate();
     }
 
     @Override
@@ -54,8 +54,8 @@ public class CachedArrayProvider<Type> implements Cache<Type>, Invalidatable {
     }
 
     public void
-    adjust(int index, int by) {
-        for (int i = index; i < length; i ++) if (indices[i] == i) indices[i] += by;
+    invalidate() {
+        Arrays.fill(this.indices, -1);
     }
 
     @Override

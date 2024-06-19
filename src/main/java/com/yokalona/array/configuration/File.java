@@ -26,9 +26,9 @@ public record File(Path path, Mode mode, int buffer, boolean cached) {
     }
 
     public static class FileConfigurer {
-        private final Path path;
         private Mode mode;
         private int buffer;
+        private final Path path;
 
         public FileConfigurer(Path path) {
             this.mode = RW;

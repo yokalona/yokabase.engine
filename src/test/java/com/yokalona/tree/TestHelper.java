@@ -21,6 +21,14 @@ public class TestHelper {
         }
     }
 
+    public static int[]
+    arrayOfSize(int size) {
+        int [] array = new int[size];
+        for (int i = 0; i < array.length; i ++) array[i] = i;
+        TestHelper.shuffle(array);
+        return array;
+    }
+
     public static <Type extends Comparable<Type>> void shuffle(Type[] array) {
         for (int idx = array.length - 1; idx > 0; idx--) {
             int element = (int) Math.floor(Math.random() * (idx + 1));

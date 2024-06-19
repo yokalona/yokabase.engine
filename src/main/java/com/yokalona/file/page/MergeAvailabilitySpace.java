@@ -2,9 +2,9 @@ package com.yokalona.file.page;
 
 import com.yokalona.annotations.Approximate;
 import com.yokalona.annotations.SpawnSubprocess;
+import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.AddressTools;
-import com.yokalona.file.Cache;
-import com.yokalona.file.CachedArrayProvider;
+import com.yokalona.file.Array;
 import com.yokalona.file.Pointer;
 import com.yokalona.file.exceptions.NoFreeSpaceLeftException;
 import com.yokalona.file.exceptions.WriteOverflowException;
@@ -22,12 +22,30 @@ public class MergeAvailabilitySpace {
     private final ASPage<Pointer> pointers;
 
     public MergeAvailabilitySpace(Configuration configuration) {
-        this.start = configuration.offset + configuration.dataSpace + AddressTools.significantBytes(configuration.page.length);
+        this.start = configuration.offset + configuration.dataSpace + AddressTools.significantBytes(configuration.page.length) + 8;
         this.end = configuration.totalSpace;
         this.pointers = new ASPage<>(PointerSerializer.forSpace(configuration.totalSpace),
-                new ASPage.Configuration(configuration.page, configuration.offset, configuration.dataSpace));
+                new ASPage.Configuration(configuration.page, configuration.offset + Integer.BYTES, configuration.dataSpace));
         this.pointers.append(new Pointer(this.start, this.end));
         this.free = this.end - this.start;
+        write(start, configuration.page, configuration.offset);
+    }
+
+    private MergeAvailabilitySpace(int start, int end, ASPage<Pointer> pointers) {
+        this.end = end;
+        this.start = start;
+        Array<Pointer> read = pointers.read();
+        for (Pointer pointer : read) {
+            this.free += pointer.length();
+        }
+        this.pointers = pointers;
+    }
+
+    public static MergeAvailabilitySpace
+    read(byte[] page, int offset, int length) {
+        int start = IntegerSerializer.INSTANCE.deserializeCompact(page, offset);
+        return new MergeAvailabilitySpace(start, length,
+                ASPage.read(PointerSerializer.forSpace(length), page, offset + Integer.BYTES));
     }
 
     public int
@@ -51,6 +69,7 @@ public class MergeAvailabilitySpace {
         if (this.pointers.size() == 0) throw new NoFreeSpaceLeftException();
         this.start += by;
         this.free -= by;
+        write(start, pointers.configuration().page(), pointers.configuration().offset() - Integer.BYTES);
     }
 
     public int
@@ -84,10 +103,11 @@ public class MergeAvailabilitySpace {
     freeImmediately(int size, int address) {
         if (address + size > end) throw new WriteOverflowException("Freeing more memory, that is accessible");
         Pointer pointer = new Pointer(address, address + size);
-        Cache<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read();
         List<Pointer> merged = new ArrayList<>();
         int index = 0;
-        while (index < pointers.length() && pointer.start() > pointers.get(index).end()) merged.add(pointers.get(index++));
+        while (index < pointers.length() && pointer.start() > pointers.get(index).end())
+            merged.add(pointers.get(index++));
         while (index < pointers.length() && overlaps(pointer, pointers.get(index)))
             pointer = new Pointer(Math.min(pointer.start(), pointers.get(index).start()),
                     Math.max(pointer.end(), pointers.get(index++).end()));
@@ -122,7 +142,7 @@ public class MergeAvailabilitySpace {
     @SpawnSubprocess
     public void
     defragmentation() {
-        Cache<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read();
         if (pointers.length() == 0) throw new NoFreeSpaceLeftException();
         LinkedList<Pointer> merged = new LinkedList<>();
         merged.add(pointers.get(0));
@@ -151,12 +171,13 @@ public class MergeAvailabilitySpace {
     private int
     allocate(int size) {
         int selected = -1, delta = Integer.MAX_VALUE;
-        Cache<Pointer> pointers = this.pointers.read();
+        Array<Pointer> pointers = this.pointers.read();
         for (int index = 0; index < pointers.length(); index++) {
             if (pointers.get(index).end() - size < start) continue;
-            if (pointers.get(index).length() >= size && delta > pointers.get(index).length() - size)
+            if (pointers.get(index).length() >= size && delta > pointers.get(index).length() - size) {
                 delta = pointers.get(selected = index).length() - size;
-            if (delta == 0) break;
+                if (delta == 0) break;
+            }
         }
         if (selected < 0) return -1;
         Pointer pointer = pointers.get(selected);
@@ -169,6 +190,11 @@ public class MergeAvailabilitySpace {
     private static boolean
     overlaps(Pointer pointer, Pointer pointers) {
         return pointer.start() <= pointers.end() && pointers.start() <= pointer.end();
+    }
+
+    private static int
+    write(int value, byte[] page, int offset) {
+        return IntegerSerializer.INSTANCE.serializeCompact(value, Integer.BYTES, page, offset);
     }
 
     public void

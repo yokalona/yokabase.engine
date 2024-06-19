@@ -3,6 +3,7 @@ package com.yokalona.array.io;
 import com.yokalona.annotations.TestOnly;
 import com.yokalona.array.configuration.File;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
 
@@ -29,6 +30,16 @@ public class CachedFile implements AutoCloseable {
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public InputReader
+    reader(byte[] buffer) {
+        return new InputReader(get(), buffer);
+    }
+
+    public OutputWriter
+    writer(byte[] buffer) {
+        return new OutputWriter(get(), buffer);
     }
 
     @Override
