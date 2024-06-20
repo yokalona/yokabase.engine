@@ -1,46 +1,46 @@
 package com.yokalona.file.page;
 
-import com.yokalona.annotations.PerformanceImpact;
 import com.yokalona.annotations.TestOnly;
 import com.yokalona.array.serializers.FixedSizeSerializer;
+import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.array.serializers.primitives.CompactLongSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
-import com.yokalona.array.serializers.primitives.LongSerializer;
 import com.yokalona.file.Array;
-import com.yokalona.file.exceptions.CRCMismatchException;
 import com.yokalona.file.exceptions.NegativeOffsetException;
 import com.yokalona.file.exceptions.NegativePageSizeException;
 import com.yokalona.file.exceptions.PageIsTooLargeException;
 import com.yokalona.file.exceptions.PageIsTooSmallException;
 import com.yokalona.file.exceptions.ReadOverflowException;
 import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.file.headers.Fixed;
+import com.yokalona.file.headers.Header;
 
 import java.util.Comparator;
 import java.util.Iterator;
-
-import static com.yokalona.file.headers.CRC64Jones.calculate;
 
 public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
 
     public static final int MAX_AS_PAGE_SIZE = 4 * 1024 * 1024;
 
-    private static final long CRC = 5928236041702360388L;
-    private static final long START = 4707194276831113265L;
-    private static final int HEADER = Long.BYTES * 2 + Integer.BYTES;
+    private static final long HEADLINE = 4707194276831113265L;
 
     private int size;
+    private final Header[] headers;
     private final Configuration configuration;
     private final FixedSizeSerializer<Type> serializer;
 
-    public ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration) {
-        this(0, serializer, configuration);
+    public ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration, Header ... headers) {
+        this(0, serializer, configuration, headers);
     }
 
-    ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration) {
+    ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration, Header ... headers) {
         this.serializer = serializer;
         this.configuration = configuration;
-        int offset = write(START, configuration, configuration.offset);
-        offset += write(configuration.length, configuration, configuration.offset + offset);
-        write(CRC, configuration, configuration.offset + offset);
+        Header[] required = new Header[]{
+                new Fixed<>(HEADLINE, new CompactLongSerializer(Long.BYTES)),
+                new Fixed<>(configuration.length, new CompactIntegerSerializer(Integer.BYTES))};
+        initHeaders(this.headers = join(required, headers));
+        writeHeaders(configuration, this.headers);
         serializeSize(this.size = size);
     }
 
@@ -205,7 +205,7 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
     @Override
     public void
     flush() {
-        serializeCRC();
+        writeHeaders(configuration, headers);
     }
 
     public boolean
@@ -223,9 +223,18 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
         return serializer;
     }
 
+    private void
+    writeHeaders(Configuration configuration, Header[] headers) {
+        int offset = configuration.offset();
+        for (Header header : headers) {
+            header.write(configuration().page, offset);
+            offset += header.length();
+        }
+    }
+
     private int
     offset(int index) {
-        return configuration.offset + HEADER + Short.BYTES + index * serializer.sizeOf();
+        return configuration.offset + headerOffset() + Short.BYTES + index * serializer.sizeOf();
     }
 
     private boolean
@@ -240,16 +249,21 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
 
     private int
     serializeSize(int value) {
-        IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + HEADER);
+        IntegerSerializer.INSTANCE.serializeCompact(value, Short.BYTES, configuration.page, configuration.offset + headerOffset());
         return value;
     }
 
-    @PerformanceImpact
+    private int
+    headerOffset() {
+        int offset = 0;
+        for (Header header : headers) offset += header.length();
+        return offset;
+    }
+
     private void
-    serializeCRC() {
-        long crc = calculate(configuration.page, configuration.offset + HEADER, configuration.length - HEADER);
-        // TODO: fix
-        write(crc, configuration, configuration.offset + Long.BYTES + Integer.BYTES);
+    initHeaders(Header[] headers) {
+        int headerOffset = headerOffset();
+        for (Header header : headers) header.offset(headerOffset);
     }
 
     private static int
@@ -257,23 +271,42 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
         return IntegerSerializer.INSTANCE.deserializeCompact(Short.BYTES, page, offset);
     }
 
-    private static int
-    write(int value, Configuration configuration, int offset) {
-        return IntegerSerializer.INSTANCE.serializeCompact(value, Integer.BYTES, configuration.page, offset);
-    }
-
-    private static int
-    write(long value, Configuration configuration, int offset) {
-        return LongSerializer.INSTANCE.serializeCompact(value, Long.BYTES, configuration.page, offset);
-    }
-
     public static <Type> ASPage<Type>
-    read(FixedSizeSerializer<Type> serializer, byte[] page, int offset) {
-        int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
-        long expected = calculate(page, offset + HEADER, length - HEADER);
-        long actual = LongSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES + Integer.BYTES);
-        if (expected != actual) throw new CRCMismatchException();
-        return new ASPage<>(deserializeSize(page, offset + HEADER), serializer, new Configuration(page, offset, length));
+    read(FixedSizeSerializer<Type> serializer, byte[] page, int offset, Header ... headers) {
+        Header headline = new Fixed<>(new CompactLongSerializer(Long.BYTES));
+        Fixed<Integer> length = new Fixed<>(new CompactIntegerSerializer(Integer.BYTES));
+
+        Header [] read = join(new Header[]{headline, length}, headers);
+
+        int headerOffset = headerOffset(read);
+        for (Header header : read) header.offset(headerOffset);
+        readHeaders(page, offset, read);
+
+        return new ASPage<>(deserializeSize(page, offset + headerOffset(read)),
+                serializer, new Configuration(page, offset, length.value()), headers);
+    }
+
+    private static Header[]
+    join(Header[] required, Header[] headers) {
+        Header[] result = new Header[required.length + headers.length];
+        System.arraycopy(required, 0, result, 0, required.length);
+        System.arraycopy(headers, 0, result, required.length, headers.length);
+        return result;
+    }
+
+    private static int
+    headerOffset(Header[] headers) {
+        int offset = 0;
+        for (Header header : headers) offset += header.length();
+        return offset;
+    }
+
+    private static void
+    readHeaders(byte[] page, int offset, Header[] headers) {
+        for (Header header : headers) {
+            header.read(page, offset);
+            offset += header.length();
+        }
     }
 
     public record Configuration(byte[] page, int offset, int length) {

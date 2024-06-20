@@ -5,7 +5,7 @@ import com.yokalona.file.CachedArrayProvider;
 
 public class CachedDataSpace<Type> implements DataSpace<Type> {
 
-    public static int MAX_CACHE_SIZE = 1024;
+    public static int MAX_CACHE_SIZE = 32;
 
     public final DataSpace<Type> dataSpace;
     private final CachedArrayProvider<Type> array;

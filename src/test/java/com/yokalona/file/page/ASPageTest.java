@@ -4,6 +4,7 @@ import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
 import com.yokalona.file.exceptions.*;
+import com.yokalona.file.headers.CRC;
 import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ class ASPageTest {
 
     @Test
     void testCreate() {
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
+        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC());
         assertEquals(0, page.size());
         assertEquals(8170, page.free());
     }
@@ -35,7 +36,7 @@ class ASPageTest {
 
     @Test
     void testAppend() {
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
+        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC());
         int index = 0;
         while (!page.spills()) {
             page.append(index);
@@ -164,7 +165,7 @@ class ASPageTest {
 
     @Test
     void testRemove() {
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024));
+        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC());
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -193,13 +194,14 @@ class ASPageTest {
     @Test
     void testWrite() {
         byte[] array = new byte[8 * 1024];
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length));
+        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2),
+                new ASPage.Configuration(array, 0, array.length), new CRC());
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
         }
         page.flush();
-        page = ASPage.read(new CompactIntegerSerializer(2), array, 0);
+        page = ASPage.read(new CompactIntegerSerializer(2), array, 0, new CRC());
         while (index-- > 0) {
             assertEquals(index, page.get(index));
         }
@@ -208,14 +210,18 @@ class ASPageTest {
     @Test
     void testWriteThrows() {
         byte[] array = new byte[8 * 1024];
-        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length));
+        ASPage<Integer> page = new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length), new CRC());
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
         }
         page.flush();
-        array[18] = 0x7F;
-        assertThrows(CRCMismatchException.class, () -> ASPage.read(new CompactIntegerSerializer(2), array, 0));
+        byte prior = array[44];
+        array[44] = 0x7F;
+        assertThrows(CRCMismatchException.class, () -> ASPage.read(
+                new CompactIntegerSerializer(2), array, 0, new CRC()));
+        array[44] = prior;
+        ASPage.read(new CompactIntegerSerializer(2), array, 0, new CRC());
     }
 
     @Test
@@ -253,7 +259,7 @@ class ASPageTest {
         while (!page.spills()) {
             page.append(index++);
         }
-        assertEquals(4084, page.last());
+        assertEquals(4088, page.last());
     }
 
     @Test

@@ -25,7 +25,6 @@ public class CachedArrayProvider<Type> implements Array<Type>, Invalidatable {
     @SuppressWarnings("unchecked")
     public Type
     get(int index) {
-//        return read(index);
         int idx = index % indices.length;
         int prior = indices[idx];
         if (prior != index) {

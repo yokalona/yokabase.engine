@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VSPageTest {
 
     public static final Random RANDOM = new Random();
-        public static final String ALPHABET = "abcdefghjiklmopqrstuvxyz0123456789";
+    public static final String ALPHABET = "abcdefghjiklmopqrstuvxyz0123456789";
 //    public static final String ALPHABET = "X";
 
     @Test
@@ -30,7 +30,7 @@ class VSPageTest {
         VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
                 new VSPage.Configuration(space, 0, 2048, space.length - 2048));
         assertEquals(0, page.size());
-        assertEquals(2082, page.occupied());
+        assertEquals(2094, page.occupied());
     }
 
     @Test
@@ -41,7 +41,7 @@ class VSPageTest {
         page.append("abc");
         assertEquals(1, page.size());
         assertEquals("abc", page.get(0));
-        Assertions.assertEquals(2082 + AddressTools.significantBytes(16 * 1024) + StringSerializer.INSTANCE.sizeOf("abc"), page.occupied());
+        Assertions.assertEquals(2094 + AddressTools.significantBytes(16 * 1024) + StringSerializer.INSTANCE.sizeOf("abc"), page.occupied());
     }
 
     @Test
@@ -54,7 +54,7 @@ class VSPageTest {
         assertEquals(2, page.size());
         assertEquals("abc", page.get(0));
         assertEquals("def", page.get(1));
-        assertEquals(2082 + AddressTools.significantBytes(16 * 1024) * 2 + StringSerializer.INSTANCE.sizeOf("abc") * 2, page.occupied());
+        assertEquals(2094 + AddressTools.significantBytes(16 * 1024) * 2 + StringSerializer.INSTANCE.sizeOf("abc") * 2, page.occupied());
         Array<String> read = page.read(String.class);
         assertEquals(2, read.length());
         assertEquals("abc", read.get(0));
@@ -204,7 +204,7 @@ class VSPageTest {
                 }
 
                 for (int subiteration = 0; subiteration < 100; subiteration++) {
-                    for (int index = 0; index < strings.size(); index += 2) {
+                    for (int index = 0; index < strings.size(); index += RANDOM.nextBoolean() ? 1 : 2) {
                         int idx = RANDOM.nextInt(strings.size());
                         page.remove(idx);
                         strings.remove(idx);
@@ -226,14 +226,16 @@ class VSPageTest {
         } catch (Throwable t) {
             System.setOut(new PrintStream(new FileOutputStream("test-out.out")));
             prettyPrint(space);
-            System.out.printf("""
+            if (page != null) {
+                System.out.printf("""
                         Stats:
                             memory:                 %6d
                             start:                  %6d
                             end:                    %6d
                         Pointers:%n""", page.availabilitySpace.available(), page.availabilitySpace.beginning(), page.availabilitySpace.maxAddress());
-            for (Pointer p : page.availabilitySpace.pointers) {
-                System.out.println("\t" + p);
+                for (Pointer p : page.availabilitySpace.pointers) {
+                    System.out.println("\t" + p);
+                }
             }
             throw t;
         }
@@ -250,18 +252,6 @@ class VSPageTest {
                         new VSPage.Configuration(space, 0, 1024, space.length - 1024));
                 String string = randomString(min, max);
                 List<String> strings = new ArrayList<>();
-//                if (1 == 1) {
-//                    page.availabilitySpace.validate();
-//                    prettyPrint(space);
-//                    System.exit(1);
-//                }
-//                    ((ASPage) ((CachedArrayPage) page.availabilitySpace.pointers).page).mask('A');
-//                    prettyPrint(space);
-//                    System.out.println("%%%%%%%%%%%%%%%%");
-//                    ((ASPage) ((CachedPage) ((IndexedDataSpace) ((CachedDataSpace) page.dataSpace).dataSpace).index).page).mask('D');
-//                    prettyPrint(space);
-//                    System.exit(1);
-//                }
                 while (page.fits(string)) {
                     strings.add(string);
                     page.append(string);
@@ -292,12 +282,12 @@ class VSPageTest {
                     }
                 }
 
-//                page.flush();
-//                VSPage<String> read = VSPage.read(StringSerializer.INSTANCE, space, 0);
-//                int[] array = TestHelper.arrayOfSize(strings.size());
-//                for (int index = 0; index < strings.size(); index++) {
-//                    assertEquals(strings.get(array[index]), read.get(array[index]));
-//                }
+                page.flush();
+                VSPage<String> read = VSPage.read(StringSerializer.INSTANCE, space, 0);
+                int[] array = TestHelper.arrayOfSize(strings.size());
+                for (int index = 0; index < strings.size(); index++) {
+                    assertEquals(strings.get(array[index]), read.get(array[index]));
+                }
             }
         } catch (Throwable t) {
             prettyPrint(space);

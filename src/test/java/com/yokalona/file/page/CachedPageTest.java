@@ -4,6 +4,8 @@ import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.Array;
 import com.yokalona.file.exceptions.*;
+import com.yokalona.file.headers.CRC;
+import com.yokalona.file.headers.Header;
 import org.junit.jupiter.api.Test;
 
 import static com.yokalona.file.page.ASPage.MAX_AS_PAGE_SIZE;
@@ -110,7 +112,7 @@ class CachedPageTest {
             page.append(index++);
         }
         page.flush();
-        page = ASPage.read(new CompactIntegerSerializer(2), array, 0);
+        page = ASPage.read(new CompactIntegerSerializer(2), array, 0, new Header[] {new CRC()});
         while (index-- > 0) {
             assertEquals(index, page.get(index));
         }
@@ -126,7 +128,8 @@ class CachedPageTest {
         }
         page.flush();
         array[18] = 0x7F;
-        assertThrows(CRCMismatchException.class, () -> ASPage.read(new CompactIntegerSerializer(2), array, 0));
+        assertThrows(CRCMismatchException.class, () -> ASPage.read(
+                new CompactIntegerSerializer(2), array, 0, new Header[] {new CRC()}));
     }
 
     @Test

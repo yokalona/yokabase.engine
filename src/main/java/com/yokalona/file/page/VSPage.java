@@ -3,7 +3,6 @@ package com.yokalona.file.page;
 import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
-import com.yokalona.file.Pointer;
 import com.yokalona.file.exceptions.*;
 import com.yokalona.file.headers.CRC64Jones;
 import com.yokalona.array.serializers.VariableSizeSerializer;
@@ -19,15 +18,14 @@ public class VSPage<Type> implements Page<Type> {
     private final Configuration configuration;
     public final DataSpace<Type> dataSpace;
     private final VariableSizeSerializer<Type> serializer;
-    public final MergeAvailabilitySpace availabilitySpace;
+    public final MASpace availabilitySpace;
 
     public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.configuration = configuration;
-        this.dataSpace = new CachedDataSpace<>(
-                new IndexedDataSpace<>(serializer,
-                        new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace)));
-        this.availabilitySpace = new MergeAvailabilitySpace(new MergeAvailabilitySpace.Configuration(
+        this.dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(serializer,
+                new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace)));
+        this.availabilitySpace = new MASpace(new MASpace.Configuration(
                 // TODO: fix configuration.page.length as it might be wrong
                 configuration.page, configuration.offset + HEADER, configuration.availabilitySpace, configuration.page.length));
         int offset = write(START, configuration.page, configuration.offset);
@@ -37,7 +35,7 @@ public class VSPage<Type> implements Page<Type> {
     }
 
     private VSPage(VariableSizeSerializer<Type> serializer, CachedDataSpace<Type> dataSpace,
-                   MergeAvailabilitySpace availabilitySpace, Configuration configuration) {
+                   MASpace availabilitySpace, Configuration configuration) {
         this.dataSpace = dataSpace;
         this.serializer = serializer;
         this.configuration = configuration;
@@ -48,7 +46,7 @@ public class VSPage<Type> implements Page<Type> {
     read(VariableSizeSerializer<Type> serializer, byte[] page, int offset) {
         int availability = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
         int data = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES + Integer.BYTES);
-        MergeAvailabilitySpace availabilitySpace = MergeAvailabilitySpace.read(page, offset + HEADER, page.length);
+        MASpace availabilitySpace = MASpace.read(page, offset + HEADER, page.length);
         CachedDataSpace<Type> dataSpace = new CachedDataSpace<>(IndexedDataSpace.read(serializer, page, offset + availability));
         return new VSPage<>(serializer, dataSpace, availabilitySpace, new Configuration(page, offset, availability, data));
     }
@@ -79,7 +77,8 @@ public class VSPage<Type> implements Page<Type> {
     public int
     append(Type value) {
         int size = serializer.sizeOf(value);
-        if (availabilitySpace.available() > size + dataSpace.pointerSize() && !availabilitySpace.fits(size)) availabilitySpace.defragmentation();
+        if (availabilitySpace.available() > size + dataSpace.pointerSize() && !availabilitySpace.fits(size))
+            availabilitySpace.defragmentation();
         else if (availabilitySpace.available() < size + dataSpace.pointerSize()) throw new NoFreeSpaceLeftException();
 
         if (!availabilitySpace.reduce(dataSpace.pointerSize())) {
@@ -99,7 +98,7 @@ public class VSPage<Type> implements Page<Type> {
             defragmentation((Class<Type>) value.getClass());
             address = availabilitySpace.alloc(size);
             if (address < 0)
-                throw new NullPointerException("No free space of size " + size + " is available, only  " + availabilitySpace.available() + " left");
+                throw new NoFreeSpaceLeftException("No free space of size " + size + " is available, only  " + availabilitySpace.available() + " left");
         }
 
         return dataSpace.insert(address, value);

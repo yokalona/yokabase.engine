@@ -8,26 +8,26 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.yokalona.file.page.MergeAvailabilitySpace.*;
+import static com.yokalona.file.page.MASpace.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-class MergeAvailabilitySpaceTest {
+class MASpaceTest {
 
     int REPEATS = 1;
 
     @Test
     void testCreate() {
         byte[] space = new byte[4 * 1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));//, new ASPage.Configuration(space, 0, 2048)));
-        assertEquals(2038, availability.available());
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));//, new ASPage.Configuration(space, 0, 2048)));
+        assertEquals(2026, availability.available());
     }
 
     @Test
     void testAlloc() {
         byte[] space = new byte[4 * 1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
-        for (int i = 0; i < 1019; i ++) {
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
+        for (int i = 0; i < 1013; i ++) {
             availability.alloc(2);
         }
         assertEquals(0, availability.available());
@@ -37,9 +37,9 @@ class MergeAvailabilitySpaceTest {
     @Test
     void testAllocOrder() {
         byte[] space = new byte[4 * 1024];
-        int[] addresses = new int[1019];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
+        int[] addresses = new int[1013];
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
         for (int i = 0; i < addresses.length; i ++) {
             addresses[i] = availability.alloc(2);
         }
@@ -54,15 +54,15 @@ class MergeAvailabilitySpaceTest {
     void testAllocFragmentation() {
         byte[] space = new byte[4 * 1024];
         int[] addresses = new int[254];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
         for (int i = 0; i < addresses.length; i ++) {
             addresses[i] = availability.alloc(8);
         }
         for (int i = 0; i < addresses.length; i += 2) {
             availability.free0(8, addresses[i]);
         }
-        assertEquals(1022, availability.available());
+        assertEquals(1018, availability.available());
         assertEquals(-1, availability.alloc(24));
         availability.free0(8, addresses[1]);
         assertTrue(availability.alloc(24) >= 0);
@@ -71,8 +71,8 @@ class MergeAvailabilitySpaceTest {
     @Test
     void testFits() {
         byte[] space = new byte[4 * 1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
         assertTrue(availability.fits(8));
         while (availability.fits(8)) {
             availability.alloc(8);
@@ -85,12 +85,12 @@ class MergeAvailabilitySpaceTest {
     @Test
     void testReduce() {
         byte[] space = new byte[4 * 1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
         availability.reduce(2);
-        assertEquals(2036, availability.available());
+        assertEquals(2024, availability.available());
         availability.reduce(-4);
-        assertEquals(2040, availability.available());
+        assertEquals(2028, availability.available());
         int alloc = availability.alloc(0);
         assertEquals(4096, alloc);
     }
@@ -98,8 +98,8 @@ class MergeAvailabilitySpaceTest {
     @Test
     void testReduceThrows() {
         byte[] space = new byte[4 * 1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
         assertTrue(availability.fits(2));
         while (availability.fits(2)) {
             availability.alloc(2);
@@ -111,9 +111,9 @@ class MergeAvailabilitySpaceTest {
     void testFree() {
         byte[] space = new byte[4 * 1024];
         int[] addresses = new int[1024];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(2038, availability.available());
-        for (int i = 0; i < 1019; i ++) {
+        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(2026, availability.available());
+        for (int i = 0; i < 1013; i ++) {
             addresses[i] = availability.alloc(2);
         }
         assertEquals(0, availability.available());
@@ -134,59 +134,59 @@ class MergeAvailabilitySpaceTest {
     @Test
     void testFreeSpill() {
         byte[] space = new byte[8 * 1024];
-        int[] addresses = new int[1022];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 4096, space.length));
-        assertEquals(space.length - 4106, availability.available());
+        int[] addresses = new int[1012];
+        MASpace availability = new MASpace(new Configuration(space, 0, 4096, space.length));
+        assertEquals(space.length - 4118, availability.available());
         for (int i = 0; i < addresses.length; i ++) {
             addresses[i] = availability.alloc(2);
         }
-        assertEquals(2042, availability.available());
-        int free, count = 1, memory = 2042;
+        assertEquals(2050, availability.available());
+        int free, count = 1, memory = 2050;
         for (int index = 0; index < addresses.length; index += 2) {
             free = availability.freeImmediately(2, addresses[index]);
             assertEquals(++ count, free);
             assertEquals(memory += 2, availability.available());
         }
         assertThrows(WriteOverflowException.class, () -> availability.freeImmediately(4096, addresses[1]));
-        free = availability.freeImmediately(2042, addresses[1021]);
+        free = availability.freeImmediately(2024, addresses[1011]);
         assertEquals(1, free);
-        assertEquals(4086, availability.available());
+        assertEquals(4074, availability.available());
     }
 
     @Test
     void testRead() {
         byte[] space = new byte[8 * 1024];
-        int[] addresses = new int[1022];
-        MergeAvailabilitySpace availability = new MergeAvailabilitySpace(new Configuration(space, 0, 4096, space.length));
-        assertEquals(space.length - 4106, availability.available());
+        int[] addresses = new int[1012];
+        MASpace availability = new MASpace(new Configuration(space, 0, 4096, space.length));
+        assertEquals(space.length - 4118, availability.available());
         for (int i = 0; i < addresses.length; i ++) {
             addresses[i] = availability.alloc(2);
         }
-        assertEquals(2042, availability.available());
+        assertEquals(2050, availability.available());
         availability.flush();
-        MergeAvailabilitySpace read = read(space, 0, space.length);
-        assertEquals(2042, read.available());
+        MASpace read = read(space, 0, space.length);
+        assertEquals(2050, read.available());
         assertEquals(availability.fragments(), read.fragments());
 
-        int free, count = 1, memory = 2042;
+        int free, count = 1, memory = 2050;
         for (int index = 0; index < addresses.length; index += 2) {
             free = read.freeImmediately(2, addresses[index]);
-            assertEquals(++ count, free);
+            assertEquals(++count, free);
             assertEquals(memory += 2, read.available());
         }
         assertThrows(WriteOverflowException.class, () -> read.freeImmediately(4096, addresses[1]));
-        free = read.freeImmediately(2042, addresses[1021]);
+        free = read.freeImmediately(2024, addresses[1011]);
         assertEquals(1, free);
-        assertEquals(4086, read.available());
+        assertEquals(4074, read.available());
     }
 
     @Test
     void testFreeThrows() {
         byte[] space = new byte[8 * 1024];
         int[] addresses = new int[1024];
-        MergeAvailabilitySpace availability =
-                new MergeAvailabilitySpace(new Configuration(space, 0, 2048, space.length));
-        assertEquals(space.length - 2058, availability.available());
+        MASpace availability =
+                new MASpace(new Configuration(space, 0, 2048, space.length));
+        assertEquals(space.length - 2070, availability.available());
         for (int i = 0; i < addresses.length; i ++) {
             addresses[i] = availability.alloc(2);
         }
@@ -200,8 +200,8 @@ class MergeAvailabilitySpaceTest {
             System.out.println(iteration);
             byte[] space = new byte[8 * 1024];
             List<Integer> addresses = new ArrayList<>();
-            MergeAvailabilitySpace availability =
-                    new MergeAvailabilitySpace(new Configuration(space, 0, 4096, space.length));
+            MASpace availability =
+                    new MASpace(new Configuration(space, 0, 4096, space.length));
             while (availability.fits(4)) {
                 addresses.add(availability.alloc(4));
                 if (addresses.getLast() < 0) throw new RuntimeException();
@@ -221,8 +221,8 @@ class MergeAvailabilitySpaceTest {
             System.out.println(iteration);
             byte[] space = new byte[8 * 1024];
             List<Integer> addresses = new ArrayList<>();
-            MergeAvailabilitySpace availability =
-                    new MergeAvailabilitySpace(new Configuration(space, 0, 4096, space.length));
+            MASpace availability =
+                    new MASpace(new Configuration(space, 0, 4096, space.length));
             while (availability.fits(4)) {
                 addresses.add(availability.alloc(4));
                 if (addresses.getLast() < 0) throw new RuntimeException();

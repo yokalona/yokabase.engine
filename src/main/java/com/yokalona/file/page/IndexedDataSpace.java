@@ -5,6 +5,8 @@ import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
+import com.yokalona.file.headers.CRC;
+import com.yokalona.file.headers.Header;
 
 import static com.yokalona.file.AddressTools.significantBytes;
 
@@ -107,7 +109,8 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     read(Serializer<Type> serializer, byte[] page, int offset) {
         int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
         int significantBytes = significantBytes(offset + length);
-        return new IndexedDataSpace<>(serializer, ASPage.read(new CompactIntegerSerializer(significantBytes), page, offset));
+        return new IndexedDataSpace<>(serializer,
+                ASPage.read(new CompactIntegerSerializer(significantBytes), page, offset, new Header[] {new CRC()}));
     }
 
 }
