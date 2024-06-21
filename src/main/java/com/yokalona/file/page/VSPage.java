@@ -31,9 +31,9 @@ public class VSPage<Type> implements Page<Type> {
 
         this.serializer = serializer;
         this.configuration = configuration;
-        this.dataSpace = new IndexedDataSpace<>(serializer,
-                ASPage.Configurer.create(configuration.page, configuration.offset + configuration.availabilitySpace + Header.headerOffset(this.headers))
-                        .length(configuration.dataSpace - Header.headerOffset(this.headers)));
+        this.dataSpace = IndexedDataSpace.Configurer.create(ASPage.Configurer.create(configuration.page, configuration.offset + configuration.availabilitySpace + Header.headerOffset(this.headers))
+                        .length(configuration.dataSpace - Header.headerOffset(this.headers)))
+                .dataspace(serializer);
         this.availabilitySpace = new MASpace(new MASpace.Configuration(
                 configuration.page, configuration.offset + Header.headerOffset(this.headers), configuration.availabilitySpace, configuration.page.length));
     }

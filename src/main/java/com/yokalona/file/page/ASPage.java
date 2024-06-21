@@ -10,10 +10,7 @@ import com.yokalona.file.exceptions.*;
 import com.yokalona.file.headers.Fixed;
 import com.yokalona.file.headers.Header;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
 
@@ -149,7 +146,7 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
     @Override
     public int
     length() {
-        return configuration.length;
+        return configuration.length();
     }
 
     @Override
@@ -248,7 +245,7 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
         private final byte[] page;
         private final List<Header> headers = new ArrayList<>();
 
-        public Configurer(byte[] page, int offset) {
+        Configurer(byte[] page, int offset) {
             assert page != null;
             this.page = page;
             this.offset = offset;
@@ -263,6 +260,16 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
         public int
         length() {
             return length;
+        }
+
+        public int
+        space() {
+            return offset + length;
+        }
+
+        public byte[]
+        page() {
+            return page;
         }
 
         public Configurer
@@ -330,5 +337,30 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
         }
     }
 
-    public record Configuration(byte[] page, int offset, int length) { }
+    public static final class Configuration {
+        private final byte[] page;
+        private final int offset;
+        private final int length;
+
+        private Configuration(byte[] page, int offset, int length) {
+            this.page = page;
+            this.offset = offset;
+            this.length = length;
+        }
+
+        public byte[]
+        page() {
+            return page;
+        }
+
+        public int
+        offset() {
+            return offset;
+        }
+
+        public int
+        length() {
+            return length;
+        }
+    }
 }

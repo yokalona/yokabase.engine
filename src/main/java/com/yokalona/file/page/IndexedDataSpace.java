@@ -1,12 +1,11 @@
 package com.yokalona.file.page;
 
 import com.yokalona.annotations.PerformanceImpact;
+import com.yokalona.annotations.TestOnly;
+import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
-import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.file.Array;
-import com.yokalona.file.headers.CRC;
-import com.yokalona.file.headers.Header;
 
 import static com.yokalona.file.AddressTools.significantBytes;
 
@@ -15,13 +14,9 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     public final Page<Integer> index;
     private final Serializer<Type> serializer;
 
-    public IndexedDataSpace(Serializer<Type> serializer, ASPage.Configurer configurer) {
-        this(serializer, configurer.aspage(new CompactIntegerSerializer(significantBytes(configurer.offset() + configurer.length()))));
-    }
-
-    IndexedDataSpace(Serializer<Type> serializer, ASPage<Integer> index) {
-        this.index = new CachedPage<>(index);
+    private IndexedDataSpace(Serializer<Type> serializer, Page<Integer> index) {
         this.serializer = serializer;
+        this.index = new CachedPage<>(index);
     }
 
     @Override
@@ -105,10 +100,32 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
 
     public static <Type> IndexedDataSpace<Type>
     read(Serializer<Type> serializer, int length, byte[] page, int offset) {
-//        int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
         int significantBytes = significantBytes(offset + length);
         return new IndexedDataSpace<>(serializer, ASPage.Configurer.create(page, offset)
                 .read(new CompactIntegerSerializer(significantBytes)));
+    }
+
+    public static class Configurer {
+        private final ASPage.Configurer aspage;
+
+        public Configurer(ASPage.Configurer aspage) {
+            this.aspage = aspage;
+        }
+
+        public static Configurer
+        create(ASPage.Configurer aspage) {
+            return new Configurer(aspage);
+        }
+
+        public <Type> DataSpace<Type>
+        dataspace(Serializer<Type> serializer) {
+            return new IndexedDataSpace<>(serializer, aspage.aspage(new CompactIntegerSerializer(significantBytes(aspage.space()))));
+        }
+
+        public <Type> DataSpace<Type>
+        read(Serializer<Type> serializer) {
+            return new IndexedDataSpace<>(serializer, aspage.read(new CompactIntegerSerializer(significantBytes(aspage.space()))));
+        }
     }
 
 }
