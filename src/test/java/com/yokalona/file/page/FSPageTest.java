@@ -10,45 +10,45 @@ import org.junit.jupiter.api.Test;
 
 import java.util.*;
 
-import static com.yokalona.file.page.ASPage.MAX_AS_PAGE_SIZE;
+import static com.yokalona.file.page.FSPage.MAX_AS_PAGE_SIZE;
 import static org.junit.jupiter.api.Assertions.*;
 
-class ASPageTest {
+class FSPageTest {
 
     public static final Random RANDOM = new Random();
 
     @Test
     void testCreate() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         assertEquals(0, page.size());
         assertEquals(8170, page.free());
     }
 
     @Test
     void testCreateThrows() {
-        assertThrows(PageIsTooLargeException.class, () -> ASPage.Configurer.create(MAX_AS_PAGE_SIZE + 1)
-                        .aspage(new CompactIntegerSerializer(2)));
-        assertThrows(PageIsTooSmallException.class, () -> ASPage.Configurer.create(0)
-                .aspage(new CompactIntegerSerializer(2)));
-        assertThrows(NegativePageSizeException.class, () -> ASPage.Configurer.create(8 * 1024)
+        assertThrows(PageIsTooLargeException.class, () -> FSPage.Configurer.create(MAX_AS_PAGE_SIZE + 1)
+                        .fspage(new CompactIntegerSerializer(2)));
+        assertThrows(PageIsTooSmallException.class, () -> FSPage.Configurer.create(0)
+                .fspage(new CompactIntegerSerializer(2)));
+        assertThrows(NegativePageSizeException.class, () -> FSPage.Configurer.create(8 * 1024)
                 .length(-1)
-                .aspage(new CompactIntegerSerializer(2)));
-        assertThrows(NegativeOffsetException.class, () -> ASPage.Configurer.create(new byte[8 * 1024], -1)
-                        .aspage(new CompactIntegerSerializer(2)));
-        assertThrows(PageIsTooLargeException.class, () -> ASPage.Configurer.create(new byte[8 * 1024], 8096)
-                        .aspage(new CompactIntegerSerializer(2)));
-        assertThrows(PageIsTooLargeException.class, () -> ASPage.Configurer.create(new byte[MAX_AS_PAGE_SIZE], 0)
+                .fspage(new CompactIntegerSerializer(2)));
+        assertThrows(NegativeOffsetException.class, () -> FSPage.Configurer.create(new byte[8 * 1024], -1)
+                        .fspage(new CompactIntegerSerializer(2)));
+        assertThrows(PageIsTooLargeException.class, () -> FSPage.Configurer.create(new byte[8 * 1024], 8096)
+                        .fspage(new CompactIntegerSerializer(2)));
+        assertThrows(PageIsTooLargeException.class, () -> FSPage.Configurer.create(new byte[MAX_AS_PAGE_SIZE], 0)
                 .length(MAX_AS_PAGE_SIZE + 1)
-                .aspage(new CompactIntegerSerializer(2)));
+                .fspage(new CompactIntegerSerializer(2)));
     }
 
     @Test
     void testAppend() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index);
@@ -60,9 +60,9 @@ class ASPageTest {
 
     @Test
     void testAppendThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -72,9 +72,9 @@ class ASPageTest {
 
     @Test
     void testGet() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -86,9 +86,9 @@ class ASPageTest {
 
     @Test
     void testGetThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -99,9 +99,9 @@ class ASPageTest {
 
     @Test
     void testInsert() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index);
@@ -118,9 +118,9 @@ class ASPageTest {
 
     @Test
     void testInsertThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -132,9 +132,9 @@ class ASPageTest {
 
     @Test
     void testSet() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -148,9 +148,9 @@ class ASPageTest {
 
     @Test
     void testSetThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index);
@@ -161,9 +161,9 @@ class ASPageTest {
 
     @Test
     void testSwap() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -178,9 +178,9 @@ class ASPageTest {
 
     @Test
     void testSwapThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -195,9 +195,9 @@ class ASPageTest {
 
     @Test
     void testRemove() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -214,9 +214,9 @@ class ASPageTest {
 
     @Test
     void testRemoveThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         assertThrows(WriteOverflowException.class, () -> page.remove(-1));
         assertThrows(WriteOverflowException.class, () -> page.remove(0));
         assertThrows(WriteOverflowException.class, () -> page.remove(999));
@@ -228,15 +228,15 @@ class ASPageTest {
     @Test
     void testWrite() {
         byte[] array = new byte[8 * 1024];
-        ASPage<Integer> page = ASPage.Configurer.create(array)
+        FSPage<Integer> page = FSPage.Configurer.create(array)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
         }
         page.flush();
-        page = ASPage.Configurer.create(array)
+        page = FSPage.Configurer.create(array)
                 .addHeader(new CRC())
                 .read(new CompactIntegerSerializer(2));
         while (index-- > 0) {
@@ -247,9 +247,9 @@ class ASPageTest {
     @Test
     void testWriteThrows() {
         byte[] array = new byte[8 * 1024];
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -257,16 +257,16 @@ class ASPageTest {
         page.flush();
         byte prior = array[44];
         array[44] = 0x7F;
-        assertThrows(CRCMismatchException.class, () -> ASPage.Configurer.create(array).addHeader(new CRC()).read(new CompactIntegerSerializer(2)));
+        assertThrows(CRCMismatchException.class, () -> FSPage.Configurer.create(array).addHeader(new CRC()).read(new CompactIntegerSerializer(2)));
         array[44] = prior;
-        ASPage.Configurer.create(array).addHeader(new CRC()).read(new CompactIntegerSerializer(2));
+        FSPage.Configurer.create(array).addHeader(new CRC()).read(new CompactIntegerSerializer(2));
     }
 
     @Test
     void testClear() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -278,9 +278,9 @@ class ASPageTest {
 
     @Test
     void testFirst() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -290,16 +290,16 @@ class ASPageTest {
 
     @Test
     void testFirstThrows() {
-        ArrayPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        ArrayPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         assertThrows(ReadOverflowException.class, page::first);
     }
 
     @Test
     void testLast() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
-                .aspage(new CompactIntegerSerializer(2));
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -309,17 +309,17 @@ class ASPageTest {
 
     @Test
     void testLastThrows() {
-        ArrayPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        ArrayPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         assertThrows(ReadOverflowException.class, page::last);
     }
 
     @Test
     void testRead() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -332,9 +332,9 @@ class ASPageTest {
 
     @Test
     void testFind() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -352,9 +352,9 @@ class ASPageTest {
 
     @Test
     void testIterator() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -375,9 +375,9 @@ class ASPageTest {
 
     @Test
     void testIteratorThrows() {
-        ASPage<Integer> page = ASPage.Configurer.create(8 * 1024)
+        FSPage<Integer> page = FSPage.Configurer.create(8 * 1024)
                 .addHeader(new CRC())
-                .aspage(new CompactIntegerSerializer(2));
+                .fspage(new CompactIntegerSerializer(2));
         int index = 0;
         while (!page.spills()) {
             page.append(index++);
@@ -393,8 +393,8 @@ class ASPageTest {
     @Test
     void testRabbitAndTheHat() {
         for (int iteration = 0; iteration < 1000; iteration++) {
-            ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024)
-                    .aspage(IntegerSerializer.INSTANCE));
+            ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024)
+                    .fspage(IntegerSerializer.INSTANCE));
             int index = 0;
             List<Integer> integers = new ArrayList<>();
             page.append(index);

@@ -12,7 +12,7 @@ import com.yokalona.file.headers.Header;
 
 import java.util.*;
 
-public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
+public class FSPage<Type> implements Iterable<Type>, ArrayPage<Type> {
 
     public static final int MAX_AS_PAGE_SIZE = 4 * 1024 * 1024;
 
@@ -23,11 +23,11 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
     private final Configuration configuration;
     private final FixedSizeSerializer<Type> serializer;
 
-    private ASPage(FixedSizeSerializer<Type> serializer, Configuration configuration, Header... headers) {
+    private FSPage(FixedSizeSerializer<Type> serializer, Configuration configuration, Header... headers) {
         this(0, serializer, configuration, headers);
     }
 
-    private ASPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration, Header... headers) {
+    private FSPage(int size, FixedSizeSerializer<Type> serializer, Configuration configuration, Header... headers) {
         this.headers = headers;
         this.serializer = serializer;
         this.configuration = configuration;
@@ -186,7 +186,7 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
             @Override
             public void remove() {
                 if (!switched) throw new IllegalStateException();
-                ASPage.this.remove(current--);
+                FSPage.this.remove(current--);
                 switched = false;
             }
         };
@@ -302,8 +302,8 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
             return new Configurer(page, offset);
         }
 
-        public <Type> ASPage<Type>
-        aspage(FixedSizeSerializer<Type> serializer) {
+        public <Type> FSPage<Type>
+        fspage(FixedSizeSerializer<Type> serializer) {
             if (offset < 0) throw new NegativeOffsetException();
             if (offset >= page.length) throw new PageIsTooSmallException();
             if (length <= 0) throw new NegativePageSizeException();
@@ -318,10 +318,10 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
             Header.initHeaders(read);
             Header.writeHeaders(read, page, offset);
 
-            return new ASPage<>(serializer, new Configuration(page, offset, length), read);
+            return new FSPage<>(serializer, new Configuration(page, offset, length), read);
         }
 
-        public <Type> ASPage<Type>
+        public <Type> FSPage<Type>
         read(FixedSizeSerializer<Type> serializer) {
             Header headline = new Fixed<>(new CompactLongSerializer(Long.BYTES));
             Fixed<Integer> length = new Fixed<>(new CompactIntegerSerializer(Integer.BYTES));
@@ -332,7 +332,7 @@ public class ASPage<Type> implements Iterable<Type>, ArrayPage<Type> {
             Header.initHeaders(read);
             Header.readHeaders(page, offset, read);
 
-            return new ASPage<>(deserializeSize(page, offset + headerOffset),
+            return new FSPage<>(deserializeSize(page, offset + headerOffset),
                     serializer, new Configuration(page, offset, length.value()), read);
         }
     }

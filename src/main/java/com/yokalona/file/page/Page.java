@@ -1,7 +1,6 @@
 package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.FixedSizeSerializer;
-import com.yokalona.array.serializers.Serializer;
 import com.yokalona.file.Array;
 
 public interface Page<Type> {
@@ -31,7 +30,7 @@ public interface Page<Type> {
 
     FixedSizeSerializer<Type> serializer();
 
-    ASPage.Configuration configuration();
+    FSPage.Configuration configuration();
 
     Array<Type> read(Class<Type> type);
 

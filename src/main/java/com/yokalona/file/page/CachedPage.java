@@ -73,7 +73,7 @@ public class CachedPage<Type> implements Page<Type> {
     }
 
     @Override
-    public ASPage.Configuration
+    public FSPage.Configuration
     configuration() {
         return page.configuration();
     }

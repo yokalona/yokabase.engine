@@ -13,12 +13,15 @@ class VSFileTest {
 
     @Test
     void test() throws IOException {
-        Path path = Path.of("file.vs");
+        Path vs = Path.of("vs");
+        if (!Files.exists(vs)) Files.createDirectory(vs);
+        Path path = vs.resolve("vsfile.yaga");
+        Files.deleteIfExists(path);
         File cached = File.file(path).cached();
         VSFile<Integer> file = new VSFile<>(new CompactIntegerSerializer(Integer.BYTES),
                 new VSFile.Configuration(cached));
 
-        for (int i = 0; i < 10; i ++) {
+        for (int i = 0; i < 10; i++) {
             file.append(TestHelper.RANDOM.nextInt());
         }
         byte[] bytes = Files.readAllBytes(path);

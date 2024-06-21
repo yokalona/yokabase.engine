@@ -11,17 +11,18 @@ import com.yokalona.array.serializers.primitives.IntegerSerializer;
 import com.yokalona.array.serializers.primitives.LongSerializer;
 import com.yokalona.file.headers.CRC;
 import com.yokalona.file.headers.Fixed;
-import com.yokalona.file.page.ASPage;
+import com.yokalona.file.page.FSPage;
 import com.yokalona.file.page.ArrayPage;
 import com.yokalona.file.page.VSPage;
 
 import java.io.IOException;
+import java.nio.file.Files;
 
 public class VSFile<Type> implements Index<Type> {
 
-    public static int VS_PAGE_SIZE = 2048;
+    public static int VS_PAGE_SIZE = 4096;
     public static float VS_PAGE_DISTRIBUTION = .1F;
-    public static int AS_PAGE_SIZE = 1024;
+    public static int AS_PAGE_SIZE = 4096;
 
     private final ArrayPage<PagePointer> index;
     private final CachedFile cachedFile;
@@ -30,13 +31,15 @@ public class VSFile<Type> implements Index<Type> {
 
     private int lastRead = -1;
 
-    public VSFile(VariableSizeSerializer<Type> serializer, Configuration configuration) {
+    public VSFile(VariableSizeSerializer<Type> serializer, Configuration configuration) throws IOException {
+        long blockSize = Files.getFileStore(configuration.file.path().getParent()).getBlockSize();
+
         this.serializer = serializer;
         this.cachedFile = new CachedFile(configuration.file);
-        this.index = ASPage.Configurer.create(AS_PAGE_SIZE)
+        this.index = FSPage.Configurer.create(Math.min((int) blockSize, AS_PAGE_SIZE))
                 .addHeader(new CRC())
                 .addHeader(new Fixed<>(6, new CompactIntegerSerializer(1)))
-                .aspage(new PagePointerSerializer());
+                .fspage(new PagePointerSerializer());
     }
 
     public void
@@ -48,7 +51,7 @@ public class VSFile<Type> implements Index<Type> {
         if (lastRead != index.size() - 1) {
             if (lastRead >= 0) {
                 PagePointer prior = index.get(lastRead);
-                writePage(prior.address(), VSPage.read(serializer, vsBuffer, 0));
+                writePage(prior.address(), VSPage.Configurer.create(vsBuffer).read(serializer));
                 updateIndex();
             }
 
@@ -62,7 +65,7 @@ public class VSFile<Type> implements Index<Type> {
             lastRead = index.size() - 1;
         }
 
-        VSPage<Type> page = VSPage.read(serializer, vsBuffer, 0);
+        VSPage<Type> page = VSPage.Configurer.create(vsBuffer).read(serializer);
         if (!page.fits(value)) {
             create();
             append(value);
@@ -77,7 +80,7 @@ public class VSFile<Type> implements Index<Type> {
 
     public void
     create() {
-        VSPage<Type> page = new VSPage<>(serializer, new VSPage.Configuration(vsBuffer, 0, VS_PAGE_DISTRIBUTION));
+        VSPage<Type> page = VSPage.Configurer.create(vsBuffer).distribute(VS_PAGE_DISTRIBUTION).vspage(serializer);
         long address = AS_PAGE_SIZE + (long) this.index.size() * VS_PAGE_SIZE;
         this.index.append(new PagePointer(address, 0));
         writePage(address, page);
@@ -112,6 +115,8 @@ public class VSFile<Type> implements Index<Type> {
     }
 
     static class PagePointerSerializer implements FixedSizeSerializer<PagePointer> {
+
+        public static final PagePointerSerializer INSTANCE = new PagePointerSerializer();
 
         @Override
         public int sizeOf() {

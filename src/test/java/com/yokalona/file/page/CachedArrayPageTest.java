@@ -1,6 +1,5 @@
 package com.yokalona.file.page;
 
-import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.Array;
 import com.yokalona.file.exceptions.ReadOverflowException;
@@ -16,7 +15,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSet() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -30,7 +29,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSetThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index);
@@ -41,7 +40,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSwap() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -56,7 +55,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSwapThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -71,7 +70,7 @@ class CachedArrayPageTest {
 
     @Test
     void testInsert() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index);
@@ -88,7 +87,7 @@ class CachedArrayPageTest {
 
     @Test
     void testInsertThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -100,7 +99,7 @@ class CachedArrayPageTest {
 
     @Test
     void testFirst() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -110,13 +109,13 @@ class CachedArrayPageTest {
 
     @Test
     void testFirstThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         assertThrows(ReadOverflowException.class, page::first);
     }
 
     @Test
     void testLast() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -126,13 +125,13 @@ class CachedArrayPageTest {
 
     @Test
     void testLastThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         assertThrows(ReadOverflowException.class, page::last);
     }
 
     @Test
     void testFind() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -150,7 +149,7 @@ class CachedArrayPageTest {
 
     @Test
     void testIterator() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -169,7 +168,7 @@ class CachedArrayPageTest {
 
     @Test
     void testIteratorThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(FSPage.Configurer.create(8 * 1024).fspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);

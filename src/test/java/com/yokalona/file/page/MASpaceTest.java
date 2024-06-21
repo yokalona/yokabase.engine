@@ -19,16 +19,16 @@ class MASpaceTest {
     @Test
     void testCreate() {
         byte[] space = new byte[4 * 1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));//, new ASPage.Configuration(space, 0, 2048)));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
     }
 
     @Test
     void testAlloc() {
         byte[] space = new byte[4 * 1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
-        for (int i = 0; i < 1013; i ++) {
+        for (int i = 0; i < 1013; i++) {
             availability.alloc(2);
         }
         assertEquals(0, availability.available());
@@ -39,13 +39,13 @@ class MASpaceTest {
     void testAllocOrder() {
         byte[] space = new byte[4 * 1024];
         int[] addresses = new int[1013];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
-        for (int i = 0; i < addresses.length; i ++) {
+        for (int i = 0; i < addresses.length; i++) {
             addresses[i] = availability.alloc(2);
         }
         int start = addresses[0];
-        for (int i = 1; i < addresses.length; i ++) {
+        for (int i = 1; i < addresses.length; i++) {
             assertTrue(start > addresses[i]);
             start = addresses[i];
         }
@@ -55,9 +55,9 @@ class MASpaceTest {
     void testAllocFragmentation() {
         byte[] space = new byte[4 * 1024];
         int[] addresses = new int[254];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
-        for (int i = 0; i < addresses.length; i ++) {
+        for (int i = 0; i < addresses.length; i++) {
             addresses[i] = availability.alloc(8);
         }
         for (int i = 0; i < addresses.length; i += 2) {
@@ -72,7 +72,7 @@ class MASpaceTest {
     @Test
     void testFits() {
         byte[] space = new byte[4 * 1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
         assertTrue(availability.fits(8));
         while (availability.fits(8)) {
@@ -86,7 +86,7 @@ class MASpaceTest {
     @Test
     void testReduce() {
         byte[] space = new byte[4 * 1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
         availability.reduce(2);
         assertEquals(2024, availability.available());
@@ -101,7 +101,7 @@ class MASpaceTest {
     @Test
     void testReduceThrows() {
         byte[] space = new byte[4 * 1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
         assertTrue(availability.fits(2));
         while (availability.fits(2)) {
@@ -114,9 +114,9 @@ class MASpaceTest {
     void testFree() {
         byte[] space = new byte[4 * 1024];
         int[] addresses = new int[1024];
-        MASpace availability = new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(2026, availability.available());
-        for (int i = 0; i < 1013; i ++) {
+        for (int i = 0; i < 1013; i++) {
             addresses[i] = availability.alloc(2);
         }
         assertEquals(0, availability.available());
@@ -138,16 +138,16 @@ class MASpaceTest {
     void testFreeSpill() {
         byte[] space = new byte[8 * 1024];
         int[] addresses = new int[1012];
-        MASpace availability = new MASpace(new Configuration(space, 0, 4096, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(4096).addressSpace(space.length).maspace(22);
         assertEquals(space.length - 4118, availability.available());
-        for (int i = 0; i < addresses.length; i ++) {
+        for (int i = 0; i < addresses.length; i++) {
             addresses[i] = availability.alloc(2);
         }
         assertEquals(2050, availability.available());
         int free, count = 1, memory = 2050;
         for (int index = 0; index < addresses.length; index += 2) {
             free = availability.freeImmediately(2, addresses[index]);
-            assertEquals(++ count, free);
+            assertEquals(++count, free);
             assertEquals(memory += 2, availability.available());
         }
         assertThrows(WriteOverflowException.class, () -> availability.freeImmediately(4096, addresses[1]));
@@ -160,9 +160,9 @@ class MASpaceTest {
     void testRead() {
         byte[] space = new byte[8 * 1024];
         int[] addresses = new int[1012];
-        MASpace availability = new MASpace(new Configuration(space, 0, 4096, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(4096).addressSpace(space.length).maspace(22);
         assertEquals(space.length - 4118, availability.available());
-        for (int i = 0; i < addresses.length; i ++) {
+        for (int i = 0; i < addresses.length; i++) {
             addresses[i] = availability.alloc(2);
         }
         assertEquals(2050, availability.available());
@@ -187,10 +187,9 @@ class MASpaceTest {
     void testFreeThrows() {
         byte[] space = new byte[8 * 1024];
         int[] addresses = new int[1024];
-        MASpace availability =
-                new MASpace(new Configuration(space, 0, 2048, space.length));
+        MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
         assertEquals(space.length - 2070, availability.available());
-        for (int i = 0; i < addresses.length; i ++) {
+        for (int i = 0; i < addresses.length; i++) {
             addresses[i] = availability.alloc(2);
         }
         assertThrows(WriteOverflowException.class, () -> availability.free0(8, 1024));
@@ -199,12 +198,11 @@ class MASpaceTest {
 
     @Test
     void testRabbitAndTheHatFree0() {
-        for (int iteration = 0; iteration < REPEATS; iteration ++) {
+        for (int iteration = 0; iteration < REPEATS; iteration++) {
             System.out.println(iteration);
             byte[] space = new byte[8 * 1024];
             List<Integer> addresses = new ArrayList<>();
-            MASpace availability =
-                    new MASpace(new Configuration(space, 0, 4096, space.length));
+            MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
             while (availability.fits(4)) {
                 addresses.add(availability.alloc(4));
                 if (addresses.getLast() < 0) throw new RuntimeException();
@@ -220,12 +218,11 @@ class MASpaceTest {
 
     @Test
     void testRabbitAndTheHatFree() {
-        for (int iteration = 0; iteration < REPEATS; iteration ++) {
+        for (int iteration = 0; iteration < REPEATS; iteration++) {
             System.out.println(iteration);
             byte[] space = new byte[8 * 1024];
             List<Integer> addresses = new ArrayList<>();
-            MASpace availability =
-                    new MASpace(new Configuration(space, 0, 4096, space.length));
+            MASpace availability = MASpace.Configurer.create(space).length(2048).addressSpace(space.length).maspace(22);
             while (availability.fits(4)) {
                 addresses.add(availability.alloc(4));
                 if (addresses.getLast() < 0) throw new RuntimeException();

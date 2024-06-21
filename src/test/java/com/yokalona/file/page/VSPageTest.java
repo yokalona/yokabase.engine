@@ -25,34 +25,40 @@ class VSPageTest {
     @Test
     void testCreating() {
         byte[] space = new byte[16 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(2048)
+                .dataSpace(space.length - 2048)
+                .vspage(StringSerializer.INSTANCE);
         assertEquals(0, page.size());
-        assertEquals(2094, page.occupied());
+        assertEquals(2086, page.occupied());
     }
 
     @Test
     void testGet() {
         byte[] space = new byte[16 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(2048)
+                .dataSpace(space.length - 2048)
+                .vspage(StringSerializer.INSTANCE);
         page.append("abc");
         assertEquals(1, page.size());
         assertEquals("abc", page.get(0));
-        Assertions.assertEquals(2094 + AddressTools.significantBytes(16 * 1024) + StringSerializer.INSTANCE.sizeOf("abc"), page.occupied());
+        Assertions.assertEquals(2086 + AddressTools.significantBytes(16 * 1024) + StringSerializer.INSTANCE.sizeOf("abc"), page.occupied());
     }
 
     @Test
     void testRead() {
         byte[] space = new byte[16 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(2048)
+                .dataSpace(space.length - 2048)
+                .vspage(StringSerializer.INSTANCE);
         page.append("abc");
         page.append("def");
         assertEquals(2, page.size());
         assertEquals("abc", page.get(0));
         assertEquals("def", page.get(1));
-        assertEquals(2094 + AddressTools.significantBytes(16 * 1024) * 2 + StringSerializer.INSTANCE.sizeOf("abc") * 2, page.occupied());
+        assertEquals(2086 + AddressTools.significantBytes(16 * 1024) * 2 + StringSerializer.INSTANCE.sizeOf("abc") * 2, page.occupied());
         Array<String> read = page.read(String.class);
         assertEquals(2, read.length());
         assertEquals("abc", read.get(0));
@@ -62,8 +68,10 @@ class VSPageTest {
     @Test
     void testSet() {
         byte[] space = new byte[16 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(2048)
+                .dataSpace(space.length - 2048)
+                .vspage(StringSerializer.INSTANCE);
         page.append("abc");
         assertEquals(1, page.size());
         assertEquals("abc", page.get(0));
@@ -79,8 +87,10 @@ class VSPageTest {
     @Test
     void testAppend() {
         byte[] space = new byte[16 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 2048, space.length - 2048));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(2048)
+                .dataSpace(space.length - 2048)
+                .vspage(StringSerializer.INSTANCE);
         page.append("abc");
         assertEquals(1, page.size());
         assertEquals("abc", page.get(0));
@@ -101,8 +111,10 @@ class VSPageTest {
     @Test
     void testFree() {
         byte[] space = new byte[2 * 1024];
-        VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                new VSPage.Configuration(space, 0, 1024, space.length - 1024));
+        VSPage<String> page = VSPage.Configurer.create(space)
+                .availabilitySpace(1024)
+                .dataSpace(space.length - 1024)
+                .vspage(StringSerializer.INSTANCE);
         page.append("abc");
         assertEquals(1, page.size());
         assertEquals("abc", page.get(0));
@@ -123,8 +135,10 @@ class VSPageTest {
     void testRepeatableAppend() {
         byte[] space = new byte[2 * 1024];
         for (int i = 0; i <= 1000; i++) {
-            VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                    new VSPage.Configuration(space, 0, 1024, space.length - 1024));
+            VSPage<String> page = VSPage.Configurer.create(space)
+                    .availabilitySpace(1024)
+                    .dataSpace(space.length - 1024)
+                    .vspage(StringSerializer.INSTANCE);
             String string = TestHelper.randomString(i);
             List<String> strings = new ArrayList<>();
             while (page.fits(string)) {
@@ -144,8 +158,10 @@ class VSPageTest {
     void testRepeatablyAppendRemove1() {
         byte[] space = new byte[2 * 1024];
         for (int i = 3; i <= 1000; i++) {
-            VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                    new VSPage.Configuration(space, 0, 1024, space.length - 1024));
+            VSPage<String> page = VSPage.Configurer.create(space)
+                    .availabilitySpace(1024)
+                    .dataSpace(space.length - 1024)
+                    .vspage(StringSerializer.INSTANCE);
             String string = TestHelper.randomString(i);
             List<String> strings = new ArrayList<>();
             while (page.fits(string)) {
@@ -180,15 +196,17 @@ class VSPageTest {
 
     @Test
     void testRepeatablyAppendRemove2() throws FileNotFoundException { // 5.716
-        byte[] space = new byte[3048];
+        byte[] space = new byte[2 * 1024];
         int min = 3, max = 100;
         VSPage<String> page = null;
         try {
             for (int i = 0; i < 1000; i++) {
                 System.out.print("\rIteration: " + i);
                 System.out.flush();
-                page = new VSPage<>(StringSerializer.INSTANCE,
-                        new VSPage.Configuration(space, 1000, 256, space.length - 1000 - 256));
+                page = VSPage.Configurer.create(space)
+                        .availabilitySpace(1024)
+                        .dataSpace(space.length - 1024)
+                        .vspage(StringSerializer.INSTANCE);
                 String string = TestHelper.randomString(min, max);
                 List<String> strings = new ArrayList<>();
                 while (page.fits(string)) {
@@ -235,9 +253,10 @@ class VSPageTest {
         int min = 15, max = 15;
         try {
             for (int i = 0; i <= 100; i++) {
-                VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                        // fix header issue already
-                        new VSPage.Configuration(space, 0, 1024, space.length - 1024));
+                VSPage<String> page = VSPage.Configurer.create(space)
+                        .availabilitySpace(1024)
+                        .dataSpace(space.length - 1024)
+                        .vspage(StringSerializer.INSTANCE);
                 String string = TestHelper.randomString(min, max);
                 List<String> strings = new ArrayList<>();
                 while (page.fits(string)) {
@@ -271,7 +290,9 @@ class VSPageTest {
                 }
 
                 page.flush();
-                VSPage<String> read = VSPage.read(StringSerializer.INSTANCE, space, 0);
+                VSPage<String> read = VSPage.Configurer
+                        .create(space)
+                        .read(StringSerializer.INSTANCE);
                 int[] array = TestHelper.arrayOfSize(strings.size());
                 for (int index = 0; index < strings.size(); index++) {
                     assertEquals(strings.get(array[index]), read.get(array[index]));
@@ -290,9 +311,10 @@ class VSPageTest {
         int min = 3, max = 10;
         try {
             for (int i = 0; i < 1000; i ++) {
-                VSPage<String> page = new VSPage<>(StringSerializer.INSTANCE,
-                        // fix header issue already
-                        new VSPage.Configuration(space, 0, 32, space.length - 32));
+                VSPage<String> page = VSPage.Configurer.create(space)
+                        .availabilitySpace(32)
+                        .dataSpace(space.length - 32)
+                        .vspage(StringSerializer.INSTANCE);
 
                 String string = TestHelper.randomString(min, max);
                 while (page.fits(string)) {

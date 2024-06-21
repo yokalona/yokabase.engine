@@ -18,21 +18,9 @@ public class MASpace {
     private int free;
     private int start;
     private final int end;
-    public final ArrayPage<Pointer> pointers;
+    private final ArrayPage<Pointer> pointers;
 
-    public MASpace(Configuration configuration) {
-        this.start = configuration.offset + configuration.dataSpace + 22;
-        this.end = configuration.totalSpace;
-        this.pointers = new CachedArrayPage<>(
-                ASPage.Configurer.create(configuration.page, configuration.offset + Integer.BYTES)
-                        .length(configuration.dataSpace)
-                        .aspage(PointerSerializer.forSpace(configuration.totalSpace)));
-        this.pointers.append(new Pointer(this.start, this.end));
-        this.free = this.end - this.start;
-        write(start, configuration.page, configuration.offset);
-    }
-
-    private MASpace(int start, int end, ASPage<Pointer> pointers) {
+    private MASpace(int start, int end, ArrayPage<Pointer> pointers) {
         this.end = end;
         this.start = start;
         Array<Pointer> read = pointers.read(Pointer.class);
@@ -49,7 +37,7 @@ public class MASpace {
     read(byte[] page, int offset, int length) {
         int start = IntegerSerializer.INSTANCE.deserializeCompact(page, offset);
         return new MASpace(start, length,
-                ASPage.Configurer.create(page, offset + Integer.BYTES)
+                FSPage.Configurer.create(page, offset + Integer.BYTES)
                 .read(PointerSerializer.forSpace(length)));
     }
 
@@ -215,6 +203,57 @@ public class MASpace {
         this.pointers.flush();
     }
 
-    public record Configuration(byte[] page, int offset, int dataSpace, int totalSpace) {
+    public static class Configurer {
+        private int space;
+        private int length;
+        private final int offset;
+        private final byte[] page;
+
+        private Configurer(byte[] page, int offset) {
+            assert page != null;
+            this.page = page;
+            this.offset = offset;
+        }
+
+        public Configurer
+        length(int length) {
+            this.length = length;
+            return this;
+        }
+
+        public Configurer
+        addressSpace(int space) {
+            this.space = space;
+            return this;
+        }
+
+        public static Configurer
+        create(int length) {
+            return create(new byte[length]);
+        }
+
+        public static Configurer
+        create(byte[] page) {
+            return new Configurer(page, 0);
+        }
+
+        public static Configurer
+        create(byte[] page, int offset) {
+            return new Configurer(page, offset);
+        }
+
+        public MASpace
+        maspace(int dataheader) {
+            int start = offset + length + dataheader;
+            ArrayPage<Pointer> page = FSPage.Configurer.create(this.page, offset + Integer.BYTES)
+                    .length(length)
+                    .fspage(PointerSerializer.forSpace(space));
+            page.append(new Pointer(start, space));
+            write(start, this.page, offset);
+
+            return new MASpace(start, space, new CachedArrayPage<>(page));
+        }
+
     }
+
 }

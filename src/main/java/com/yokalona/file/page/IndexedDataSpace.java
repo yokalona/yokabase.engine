@@ -1,8 +1,6 @@
 package com.yokalona.file.page;
 
 import com.yokalona.annotations.PerformanceImpact;
-import com.yokalona.annotations.TestOnly;
-import com.yokalona.array.serializers.FixedSizeSerializer;
 import com.yokalona.array.serializers.Serializer;
 import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
 import com.yokalona.file.Array;
@@ -101,25 +99,25 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     public static <Type> IndexedDataSpace<Type>
     read(Serializer<Type> serializer, int length, byte[] page, int offset) {
         int significantBytes = significantBytes(offset + length);
-        return new IndexedDataSpace<>(serializer, ASPage.Configurer.create(page, offset)
+        return new IndexedDataSpace<>(serializer, FSPage.Configurer.create(page, offset)
                 .read(new CompactIntegerSerializer(significantBytes)));
     }
 
     public static class Configurer {
-        private final ASPage.Configurer aspage;
+        private final FSPage.Configurer aspage;
 
-        public Configurer(ASPage.Configurer aspage) {
+        public Configurer(FSPage.Configurer aspage) {
             this.aspage = aspage;
         }
 
         public static Configurer
-        create(ASPage.Configurer aspage) {
+        create(FSPage.Configurer aspage) {
             return new Configurer(aspage);
         }
 
         public <Type> DataSpace<Type>
         dataspace(Serializer<Type> serializer) {
-            return new IndexedDataSpace<>(serializer, aspage.aspage(new CompactIntegerSerializer(significantBytes(aspage.space()))));
+            return new IndexedDataSpace<>(serializer, aspage.fspage(new CompactIntegerSerializer(significantBytes(aspage.space()))));
         }
 
         public <Type> DataSpace<Type>
