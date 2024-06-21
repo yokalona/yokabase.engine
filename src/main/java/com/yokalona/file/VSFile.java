@@ -33,9 +33,10 @@ public class VSFile<Type> implements Index<Type> {
     public VSFile(VariableSizeSerializer<Type> serializer, Configuration configuration) {
         this.serializer = serializer;
         this.cachedFile = new CachedFile(configuration.file);
-        this.index = new ASPage<>(new PagePointerSerializer(), new ASPage.Configuration(AS_PAGE_SIZE),
-                new CRC(),
-                new Fixed<>(6, new CompactIntegerSerializer(1)));
+        this.index = ASPage.Configurer.create(AS_PAGE_SIZE)
+                .addHeader(new CRC())
+                .addHeader(new Fixed<>(6, new CompactIntegerSerializer(1)))
+                .aspage(new PagePointerSerializer());
     }
 
     public void

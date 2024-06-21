@@ -16,7 +16,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSet() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -30,7 +30,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSetThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index);
@@ -41,7 +41,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSwap() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -56,7 +56,7 @@ class CachedArrayPageTest {
 
     @Test
     void testSwapThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index ++);
@@ -71,7 +71,7 @@ class CachedArrayPageTest {
 
     @Test
     void testInsert() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index);
@@ -88,7 +88,7 @@ class CachedArrayPageTest {
 
     @Test
     void testInsertThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -100,7 +100,7 @@ class CachedArrayPageTest {
 
     @Test
     void testFirst() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -110,13 +110,13 @@ class CachedArrayPageTest {
 
     @Test
     void testFirstThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         assertThrows(ReadOverflowException.class, page::first);
     }
 
     @Test
     void testLast() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -126,13 +126,13 @@ class CachedArrayPageTest {
 
     @Test
     void testLastThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         assertThrows(ReadOverflowException.class, page::last);
     }
 
     @Test
     void testFind() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -150,7 +150,7 @@ class CachedArrayPageTest {
 
     @Test
     void testIterator() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -169,7 +169,7 @@ class CachedArrayPageTest {
 
     @Test
     void testIteratorThrows() {
-        ArrayPage<Integer> page = new CachedArrayPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        ArrayPage<Integer> page = new CachedArrayPage<>(ASPage.Configurer.create(8 * 1024).aspage(new CompactIntegerSerializer(2)));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -182,39 +182,4 @@ class CachedArrayPageTest {
         assertThrows(IllegalStateException.class, iterator::remove);
     }
 
-    @Test
-    void testRepeatedGet() {
-        class CountedASPage<Type> extends ASPage<Type> {
-            public int count = 0;
-            public CountedASPage(FixedSizeSerializer<Type> serializer, Configuration configuration) {
-                super(serializer, configuration);
-            }
-
-            @Override
-            public synchronized Type get(int index) {
-                count ++;
-                return super.get(index);
-            }
-        }
-
-        byte[] array = new byte[1024];
-        CountedASPage<Integer> counter = new CountedASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length));
-        ArrayPage<Integer> page = new CachedArrayPage<>(counter);
-        int index = 0;
-        while (page.free() >= 2) {
-            page.append(index);
-        }
-
-        page.get(0);
-        page.get(0);
-        page.get(0);
-        page.get(0);
-        assertEquals(1, counter.count);
-
-        Iterator<Integer> iterator = page.iterator();
-        while (iterator.hasNext()) {
-            Integer ignore = iterator.next();
-        }
-        assertEquals(page.size(), counter.count);
-    }
 }

@@ -10,14 +10,14 @@ class DataSpaceTest {
 
     @Test
     void testCreate() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         assertEquals(0, dataSpace.size());
         assertEquals(2, dataSpace.pointerSize());
     }
 
     @Test
     void testGet() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         dataSpace.insert(2048, "abc");
         assertEquals("abc", dataSpace.get(0));
         assertEquals(2048, dataSpace.address(0));
@@ -26,7 +26,7 @@ class DataSpaceTest {
 
     @Test
     void testAddress() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         dataSpace.insert(2048, "abc");
         assertEquals("abc", dataSpace.get(0));
         assertEquals(2048, dataSpace.address(0));
@@ -34,7 +34,7 @@ class DataSpaceTest {
 
     @Test
     void testSet() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         dataSpace.insert(2048, "abc");
         assertEquals("abc", dataSpace.get(0));
         dataSpace.set(0, "def");
@@ -44,7 +44,7 @@ class DataSpaceTest {
 
     @Test
     void testInsert() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         assertEquals(1, dataSpace.insert(2048, "abc"));
         assertEquals("abc", dataSpace.get(0));
         assertEquals(2048, dataSpace.address(0));
@@ -53,7 +53,7 @@ class DataSpaceTest {
 
     @Test
     void testRemove() {
-        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096));
+        IndexedDataSpace<String> dataSpace = new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096));
         dataSpace.insert(2048, "abc");
         assertEquals("abc", dataSpace.get(0));
         dataSpace.remove(0);
@@ -62,7 +62,7 @@ class DataSpaceTest {
 
     @Test
     void testRead() {
-        CachedDataSpace<String> dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096)));
+        CachedDataSpace<String> dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096)));
         dataSpace.insert(2048, "abc");
         dataSpace.insert(2080, "def");
         Array<String> read = dataSpace.read(String.class);
@@ -73,7 +73,7 @@ class DataSpaceTest {
 
     @Test
     void testClear() {
-        CachedDataSpace<String> dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(StringSerializer.INSTANCE, new ASPage.Configuration(4096)));
+        CachedDataSpace<String> dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(StringSerializer.INSTANCE, ASPage.Configurer.create(4096)));
         dataSpace.insert(2048, "abc");
         dataSpace.insert(2080, "def");
         dataSpace.clear();

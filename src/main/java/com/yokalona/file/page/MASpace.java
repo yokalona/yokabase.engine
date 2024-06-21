@@ -23,8 +23,10 @@ public class MASpace {
     public MASpace(Configuration configuration) {
         this.start = configuration.offset + configuration.dataSpace + 22;
         this.end = configuration.totalSpace;
-        this.pointers = new CachedArrayPage<>(new ASPage<>(PointerSerializer.forSpace(configuration.totalSpace),
-                new ASPage.Configuration(configuration.page, configuration.offset + Integer.BYTES, configuration.dataSpace)));
+        this.pointers = new CachedArrayPage<>(
+                ASPage.Configurer.create(configuration.page, configuration.offset + Integer.BYTES)
+                        .length(configuration.dataSpace)
+                        .aspage(PointerSerializer.forSpace(configuration.totalSpace)));
         this.pointers.append(new Pointer(this.start, this.end));
         this.free = this.end - this.start;
         write(start, configuration.page, configuration.offset);
@@ -47,7 +49,8 @@ public class MASpace {
     read(byte[] page, int offset, int length) {
         int start = IntegerSerializer.INSTANCE.deserializeCompact(page, offset);
         return new MASpace(start, length,
-                ASPage.read(PointerSerializer.forSpace(length), page, offset + Integer.BYTES));
+                ASPage.Configurer.create(page, offset + Integer.BYTES)
+                .read(PointerSerializer.forSpace(length)));
     }
 
     public int
