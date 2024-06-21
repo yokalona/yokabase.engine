@@ -121,7 +121,7 @@ class CachedArrayPageTest {
         while (page.free() >= 2) {
             page.append(index++);
         }
-        assertEquals(4084, page.last());
+        assertEquals(4088, page.last());
     }
 
     @Test

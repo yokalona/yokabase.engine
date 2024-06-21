@@ -7,7 +7,6 @@ import com.yokalona.array.exceptions.HeaderMismatchException;
 import com.yokalona.array.exceptions.IncompatibleVersionException;
 import com.yokalona.array.io.FixedObjectLayout;
 import com.yokalona.array.serializers.primitives.IntegerSerializer;
-import com.yokalona.array.serializers.primitives.StringSerializer;
 import com.yokalona.array.subscriber.CountingSubscriber;
 import com.yokalona.array.subscriber.CountingSubscriber.Counter;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +20,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 import static com.yokalona.array.configuration.Chunked.chunked;
+import static com.yokalona.array.configuration.Chunked.linear;
 import static com.yokalona.array.configuration.ChunkedRead.read;
 import static com.yokalona.array.configuration.ChunkedWrite.write;
 import static com.yokalona.array.configuration.File.file;

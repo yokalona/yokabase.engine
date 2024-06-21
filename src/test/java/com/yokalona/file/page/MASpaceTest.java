@@ -2,6 +2,7 @@ package com.yokalona.file.page;
 
 import com.yokalona.file.exceptions.NoFreeSpaceLeftException;
 import com.yokalona.file.exceptions.WriteOverflowException;
+import com.yokalona.tree.TestHelper;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -93,6 +94,8 @@ class MASpaceTest {
         assertEquals(2028, availability.available());
         int alloc = availability.alloc(0);
         assertEquals(4096, alloc);
+        availability.flush();
+        TestHelper.prettyPrint(space);
     }
 
     @Test

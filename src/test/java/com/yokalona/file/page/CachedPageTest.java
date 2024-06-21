@@ -15,7 +15,7 @@ class CachedPageTest {
 
     @Test
     void testCreate() {
-        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC()));
         assertEquals(0, page.size());
         assertEquals(8170, page.free());
     }
@@ -32,7 +32,7 @@ class CachedPageTest {
 
     @Test
     void testAppend() {
-        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC()));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index);
@@ -77,7 +77,7 @@ class CachedPageTest {
 
     @Test
     void testRemove() {
-        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024)));
+        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(8 * 1024), new CRC()));
         int index = 0;
         while (page.free() >= 2) {
             page.append(index++);
@@ -106,13 +106,14 @@ class CachedPageTest {
     @Test
     void testWrite() {
         byte[] array = new byte[8 * 1024];
-        Page<Integer> page = new CachedPage<>(new ASPage<>(new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length)));
+        Page<Integer> page = new CachedPage<>(new ASPage<>(
+                new CompactIntegerSerializer(2), new ASPage.Configuration(array, 0, array.length), new CRC()));
         int index = 0;
         while (page.free() > 2) {
             page.append(index++);
         }
         page.flush();
-        page = ASPage.read(new CompactIntegerSerializer(2), array, 0, new Header[] {new CRC()});
+        page = ASPage.read(new CompactIntegerSerializer(2), array, 0, new CRC());
         while (index-- > 0) {
             assertEquals(index, page.get(index));
         }

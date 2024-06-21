@@ -1,54 +1,70 @@
 package com.yokalona.file.page;
 
 import com.yokalona.array.serializers.FixedSizeSerializer;
-import com.yokalona.array.serializers.primitives.IntegerSerializer;
+import com.yokalona.array.serializers.primitives.CompactIntegerSerializer;
+import com.yokalona.array.serializers.primitives.CompactLongSerializer;
 import com.yokalona.file.Array;
 import com.yokalona.file.exceptions.*;
-import com.yokalona.file.headers.CRC64Jones;
 import com.yokalona.array.serializers.VariableSizeSerializer;
-import com.yokalona.array.serializers.primitives.LongSerializer;
+import com.yokalona.file.headers.CRC;
+import com.yokalona.file.headers.Fixed;
+import com.yokalona.file.headers.Header;
 
 public class VSPage<Type> implements Page<Type> {
     public static final int MAX_VS_PAGE_SIZE = 4 * 1024 * 1024;
 
-    private static final long CRC = 5928236041702360388L;
-    private static final long START = 6220403751627599921L;
-    private static final int HEADER = Long.BYTES * 2 + Integer.BYTES * 2;
+    private static final long HEADLINE = 6220403751627599921L;
 
+    private final DataSpace<Type> dataSpace;
+    private final MASpace availabilitySpace;
     private final Configuration configuration;
-    public final DataSpace<Type> dataSpace;
     private final VariableSizeSerializer<Type> serializer;
-    public final MASpace availabilitySpace;
+    private final Header[] headers;
 
-    public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration) {
+    public VSPage(VariableSizeSerializer<Type> serializer, Configuration configuration, Header... headers) {
+        Header[] required = new Header[]{
+                new Fixed<>(HEADLINE, new CompactLongSerializer(Long.BYTES)),
+                new Fixed<>(configuration.availabilitySpace, new CompactIntegerSerializer(Integer.BYTES)),
+                new Fixed<>(configuration.dataSpace, new CompactIntegerSerializer(Integer.BYTES)),
+                new CRC()};
+        Header.initHeaders(this.headers = Header.join(required, headers));
+
         this.serializer = serializer;
         this.configuration = configuration;
-        this.dataSpace = new CachedDataSpace<>(new IndexedDataSpace<>(serializer,
-                new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace, configuration.dataSpace)));
+        this.dataSpace = new IndexedDataSpace<>(serializer,
+                new ASPage.Configuration(configuration.page, configuration.offset + configuration.availabilitySpace + Header.headerOffset(this.headers),
+                        configuration.dataSpace - Header.headerOffset(this.headers)));
         this.availabilitySpace = new MASpace(new MASpace.Configuration(
-                // TODO: fix configuration.page.length as it might be wrong
-                configuration.page, configuration.offset + HEADER, configuration.availabilitySpace, configuration.page.length));
-        int offset = write(START, configuration.page, configuration.offset);
-        offset += write(configuration.availabilitySpace, configuration.page, configuration.offset + offset);
-        offset += write(configuration.dataSpace, configuration.page, configuration.offset + offset);
-        write(CRC, configuration.page, configuration.offset + offset);
+                configuration.page, configuration.offset + Header.headerOffset(this.headers), configuration.availabilitySpace, configuration.page.length));
     }
 
-    private VSPage(VariableSizeSerializer<Type> serializer, CachedDataSpace<Type> dataSpace,
-                   MASpace availabilitySpace, Configuration configuration) {
-        this.dataSpace = dataSpace;
+    private VSPage(VariableSizeSerializer<Type> serializer, DataSpace<Type> dataSpace,
+                   MASpace availabilitySpace, Configuration configuration, Header[] headers) {
+        this.headers = headers;
         this.serializer = serializer;
         this.configuration = configuration;
         this.availabilitySpace = availabilitySpace;
+        this.dataSpace = new CachedDataSpace<>(dataSpace);
+        Header.writeHeaders(this.headers, configuration.page, configuration.offset);
     }
 
     public static <Type> VSPage<Type>
-    read(VariableSizeSerializer<Type> serializer, byte[] page, int offset) {
-        int availability = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
-        int data = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES + Integer.BYTES);
-        MASpace availabilitySpace = MASpace.read(page, offset + HEADER, page.length);
-        CachedDataSpace<Type> dataSpace = new CachedDataSpace<>(IndexedDataSpace.read(serializer, page, offset + availability));
-        return new VSPage<>(serializer, dataSpace, availabilitySpace, new Configuration(page, offset, availability, data));
+    read(VariableSizeSerializer<Type> serializer, byte[] page, int offset, Header... headers) {
+        Fixed<Long> headline = new Fixed<>(new CompactLongSerializer(Long.BYTES));
+        Fixed<Integer> availabilitySpace = new Fixed<>(new CompactIntegerSerializer(Integer.BYTES));
+        Fixed<Integer> dataSpace = new Fixed<>(new CompactIntegerSerializer(Integer.BYTES));
+        CRC crc = new CRC();
+
+        Header[] read = Header.join(new Header[]{headline, availabilitySpace, dataSpace, crc}, headers);
+
+        int headerOffset = Header.initHeaders(read);
+        Header.readHeaders(page, offset, read);
+
+        MASpace availability = MASpace.read(page, offset + headerOffset, page.length);
+        DataSpace<Type> data = new CachedDataSpace<>(IndexedDataSpace.read(serializer, dataSpace.value(), page, offset + availabilitySpace.value() + headerOffset));
+
+        return new VSPage<>(serializer, data, availability,
+                new Configuration(page, offset, availabilitySpace.value(), dataSpace.value()), read);
     }
 
     @Override
@@ -117,8 +133,7 @@ public class VSPage<Type> implements Page<Type> {
 
     @Override
     public void flush() {
-        long crc = CRC64Jones.calculate(configuration.page, configuration.offset + HEADER, configuration.offset + configuration.dataSpace + configuration.availabilitySpace);
-        write(crc, configuration.page, configuration.offset + Long.BYTES + Integer.BYTES * 2);
+        Header.writeHeaders(this.headers, configuration.page, configuration.offset);
         availabilitySpace.flush();
         dataSpace.flush();
     }
@@ -179,16 +194,6 @@ public class VSPage<Type> implements Page<Type> {
         return configuration.availabilitySpace + configuration.dataSpace - availabilitySpace.available();
     }
 
-    private static int
-    write(int value, byte[] page, int offset) {
-        return IntegerSerializer.INSTANCE.serializeCompact(value, Integer.BYTES, page, offset);
-    }
-
-    private static int
-    write(long value, byte[] page, int offset) {
-        return LongSerializer.INSTANCE.serializeCompact(value, Long.BYTES, page, offset);
-    }
-
     public record Configuration(byte[] page, int offset, int availabilitySpace, int dataSpace) {
 
         public Configuration(byte[] page, int offset, float distribution) {
@@ -198,7 +203,7 @@ public class VSPage<Type> implements Page<Type> {
         public Configuration {
             if (offset < 0) throw new NegativeOffsetException();
             if (availabilitySpace < 32) throw new PageIsTooSmallException();
-            if (dataSpace < 1024) throw new PageIsTooSmallException();
+            if (dataSpace < 512) throw new PageIsTooSmallException();
             int size = offset + availabilitySpace + dataSpace;
             if (page.length < size || size > MAX_VS_PAGE_SIZE) throw new PageIsTooLargeException(size);
         }

@@ -2,12 +2,17 @@ package com.yokalona.tree;
 
 import com.yokalona.array.subscriber.CountingSubscriber;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Random;
+
 public class TestHelper {
 
+    public static final Random RANDOM = new Random();
     private static final long kilo = 1024;
     private static final long mega = kilo * kilo;
     private static final long giga = mega * kilo;
     private static final long tera = giga * kilo;
+    public static final String ALPHABET = "abcdefghjiklmopqrstuvxyz0123456789";
 
     public static double log(int number, int base) {
         return Math.log(number) / Math.log(base);
@@ -141,6 +146,59 @@ public class TestHelper {
                 |     Average %-16s            | %10.2f %-5s   |%n""", name, value, measurement);
         else System.out.printf("""
                 |     Average %-16s            |        N/A %-5s   |%n""", name, measurement);
+    }
+
+    public static void
+    prettyPrint(byte[] space) {
+        System.out.printf("%3s%-3s|", "-", "-");
+        for (int i = 0; i < 10; i++) {
+            System.out.printf("%6d", i);
+        }
+        System.out.println("\n------+------------------------------------------------------------+------");
+        int count = 0;
+        for (int i = 0; i < space.length; i += 10) {
+            System.out.printf("%6d|", count);
+            int min = Math.min(i + 10, space.length);
+            for (int j = i; j < min; j++) {
+                if (printable(space[j]))
+                    System.out.printf("%6s", (char) space[j]);
+                else System.out.printf("%6d", space[j]);
+            }
+            if (min < i + 10) System.out.printf("%" + (i + 10 - min) * 6 + "s|%-5d%n", "", count);
+            else System.out.printf("|%-6d%n", count++);
+        }
+        System.out.println("------+------------------------------------------------------------+------");
+        System.out.printf("%3s%-3s|", "-", "-");
+        for (int i = 0; i < 10; i++) {
+            System.out.printf("%6d", i);
+        }
+        System.out.println();
+    }
+
+    private static boolean
+    printable(byte space) {
+        return space >= 33 && space < 127;
+    }
+
+    public static String
+    generate(byte[] bytes) {
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length()));
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    public static String
+    randomString(int length) {
+        byte[] bytes = new byte[length];
+        return generate(bytes);
+    }
+
+    public static String
+    randomString(int min, int max) {
+        if (min == max) return generate(new byte[min]);
+        byte[] bytes = new byte[RANDOM.nextInt(min, max)];
+        return generate(bytes);
     }
 
     public record PersistenceTest(int size, int memory, int read, int write, int buffer, int typeSize) {

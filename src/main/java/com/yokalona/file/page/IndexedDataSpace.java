@@ -106,11 +106,11 @@ public class IndexedDataSpace<Type> implements DataSpace<Type> {
     }
 
     public static <Type> IndexedDataSpace<Type>
-    read(Serializer<Type> serializer, byte[] page, int offset) {
-        int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
+    read(Serializer<Type> serializer, int length, byte[] page, int offset) {
+//        int length = IntegerSerializer.INSTANCE.deserializeCompact(page, offset + Long.BYTES);
         int significantBytes = significantBytes(offset + length);
         return new IndexedDataSpace<>(serializer,
-                ASPage.read(new CompactIntegerSerializer(significantBytes), page, offset, new Header[] {new CRC()}));
+                ASPage.read(new CompactIntegerSerializer(significantBytes), page, offset));
     }
 
 }

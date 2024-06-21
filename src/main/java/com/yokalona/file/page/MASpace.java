@@ -7,8 +7,6 @@ import com.yokalona.file.Array;
 import com.yokalona.file.Pointer;
 import com.yokalona.file.exceptions.NoFreeSpaceLeftException;
 import com.yokalona.file.exceptions.WriteOverflowException;
-import com.yokalona.file.headers.CRC;
-import com.yokalona.file.headers.Header;
 import com.yokalona.file.serializers.PointerSerializer;
 
 import java.util.ArrayList;
@@ -36,8 +34,11 @@ public class MASpace {
         this.end = end;
         this.start = start;
         Array<Pointer> read = pointers.read(Pointer.class);
-        for (Pointer pointer : read) {
-            this.free += pointer.length();
+        for (Pointer p : read) {
+            if (p.start() < start) {
+                int delta = p.end() - start;
+                if (delta > 0) this.free += delta;
+            } else this.free += p.length();
         }
         this.pointers = pointers;
     }
@@ -46,8 +47,7 @@ public class MASpace {
     read(byte[] page, int offset, int length) {
         int start = IntegerSerializer.INSTANCE.deserializeCompact(page, offset);
         return new MASpace(start, length,
-                ASPage.read(PointerSerializer.forSpace(length), page, offset + Integer.BYTES,
-                        new Header[] {new CRC()}));
+                ASPage.read(PointerSerializer.forSpace(length), page, offset + Integer.BYTES));
     }
 
     public int
@@ -86,6 +86,10 @@ public class MASpace {
             if (this.pointers.free() < this.pointers.serializer().sizeOf()) {
                 defragmentation();
                 index = this.pointers.find(pointer, Comparator.comparingInt(Pointer::start));
+
+                // TODO: defrag on dataspace should fix that
+                if (this.pointers.free() < this.pointers.serializer().sizeOf()) throw new NoFreeSpaceLeftException();
+
                 if (index < 0) this.pointers.insert(-(index + 1), pointer);
                 else this.pointers.set(index, pointer);
             } else this.pointers.insert(-(index + 1), pointer);
